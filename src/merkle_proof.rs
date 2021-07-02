@@ -84,79 +84,63 @@ impl MerkleProof {
 
         let (leaves_bitmap, proof) = self.take();
 
+        let mut stack_fork_height = vec![0u8; 256]; // store fork height
+        let mut stack = vec![H256::zero(); 256]; // store node hash
+        let mut stack_top = 0;
+        let mut leaf_index = 0;
         let mut proof_index = 0;
-        // (bitmap_index, key, node_hash)
-        let mut current_nodes: Vec<(usize, H256, H256)> = leaves
-            .into_iter()
-            .enumerate()
-            .map(|(bitmap_idx, (key, value))| (bitmap_idx, key, hash_leaf::<H>(&key, &value)))
-            .collect();
-        let mut next_nodes: Vec<(usize, H256, H256)> = Default::default();
-        for height in 0..=core::u8::MAX {
-            let mut key_idx = 0;
-            while key_idx < current_nodes.len() {
-                let (bitmap_idx_a, key_a, node_a) = current_nodes[key_idx];
-                let parent_key_a = key_a.parent_path(height);
-
-                let mut non_sibling_nodes = Vec::with_capacity(2);
-                if key_idx + 1 < current_nodes.len() {
-                    let (bitmap_idx_b, key_b, node_b) = current_nodes[key_idx + 1];
-                    let parent_key_b = key_b.parent_path(height);
-                    if parent_key_a == parent_key_b {
-                        // key_a and key_b are siblings, just merge them
-                        let parent_node = merge::<H>(height, &parent_key_a, &node_a, &node_b);
-                        next_nodes.push((bitmap_idx_a, key_a, parent_node));
-                        key_idx += 2;
-                    } else {
-                        non_sibling_nodes.push((bitmap_idx_a, key_a, node_a, parent_key_a));
-                        if key_idx + 2 == current_nodes.len() {
-                            // key_a and key_b are not siblings, and we reach the end of current height
-                            non_sibling_nodes.push((bitmap_idx_b, key_b, node_b, parent_key_b));
-                        }
+        while leaf_index < leaves.len() {
+            let (leaf_key, value) = leaves[leaf_index];
+            let fork_height = if leaf_index + 1 < leaves.len() {
+                leaf_key.fork_height(&leaves[leaf_index + 1].0)
+            } else {
+                255
+            };
+            let mut current_node = hash_leaf::<H>(&leaf_key, &value);
+            for height in 0..=fork_height {
+                if height == fork_height && leaf_index + 1 < leaves.len() {
+                    break;
+                }
+                let parent_key = leaf_key.parent_path(height);
+                let is_right = leaf_key.is_right(height);
+                let sibling_node = if stack_top > 0 && stack_fork_height[stack_top - 1] == height {
+                    let node_hash = stack[stack_top - 1];
+                    stack_top -= 1;
+                    node_hash
+                } else if leaves_bitmap[leaf_index].get_bit(height) {
+                    if proof_index >= proof.len() {
+                        return Err(Error::CorruptedProof);
                     }
+                    let node_hash = proof[proof_index];
+                    proof_index += 1;
+                    node_hash
                 } else {
-                    non_sibling_nodes.push((bitmap_idx_a, key_a, node_a, parent_key_a));
-                }
-
-                for (bitmap_idx, current_key, current_node, parent_key) in
-                    non_sibling_nodes.into_iter()
-                {
-                    let bitmap = leaves_bitmap[bitmap_idx];
-                    let non_zero_sibling = bitmap.get_bit(height);
-                    let is_right = current_key.is_right(height);
-                    let (left, right) = if non_zero_sibling {
-                        if proof_index == proof.len() {
-                            return Err(Error::CorruptedProof);
-                        }
-                        let sibling_node = proof[proof_index];
-                        proof_index += 1;
-                        if is_right {
-                            (sibling_node, current_node)
-                        } else {
-                            (current_node, sibling_node)
-                        }
-                    } else if is_right {
-                        (H256::zero(), current_node)
-                    } else {
-                        (current_node, H256::zero())
-                    };
-                    let node_hash = merge::<H>(height, &parent_key, &left, &right);
-                    next_nodes.push((bitmap_idx, current_key, node_hash));
-                    key_idx += 1;
-                }
+                    H256::zero()
+                };
+                let (left, right) = if is_right {
+                    (sibling_node, current_node)
+                } else {
+                    (current_node, sibling_node)
+                };
+                current_node = merge::<H>(height, &parent_key, &left, &right);
             }
-            current_nodes = core::mem::take(&mut next_nodes);
+            debug_assert!(stack_top < 256);
+            stack_fork_height[stack_top] = fork_height;
+            stack[stack_top] = current_node;
+            stack_top += 1;
+            leaf_index += 1;
         }
 
+        if stack_top != 1 {
+            return Err(Error::CorruptedProof);
+        }
+        if leaf_index != leaves.len() {
+            return Err(Error::CorruptedProof);
+        }
         if proof_index != proof.len() {
             return Err(Error::CorruptedProof);
         }
-
-        if current_nodes.len() != 1 {
-            Err(Error::CorruptedProof)
-        } else {
-            Ok(current_nodes[0].2)
-        }
+        Ok(stack[0])
     }
 
     /// Verify merkle proof

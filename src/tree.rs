@@ -171,56 +171,51 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
             leaves_bitmap.push(bitmap);
         }
 
-        // Collect sibling node hashes
         let mut proof: Vec<H256> = Default::default();
-        let mut current_keys: Vec<H256> = keys;
-        let mut next_keys: Vec<H256> = Default::default();
-        for height in 0..=core::u8::MAX {
-            let mut key_idx = 0;
-            while key_idx < current_keys.len() {
-                let key_a = current_keys[key_idx];
-                let parent_key_a = key_a.parent_path(height);
-
-                let mut non_sibling_keys = Vec::with_capacity(2);
-                if key_idx + 1 < current_keys.len() {
-                    // There are more than 2 keys left
-                    let key_b = current_keys[key_idx + 1];
-                    let parent_key_b = key_b.parent_path(height);
-                    if parent_key_a == parent_key_b {
-                        // key_a and key_b are siblings
-                        next_keys.push(key_a);
-                        key_idx += 2;
-                    } else {
-                        non_sibling_keys.push((key_a, parent_key_a));
-                        if key_idx + 2 == current_keys.len() {
-                            // key_a and key_b are not siblings, and we reach the end of current height
-                            non_sibling_keys.push((key_b, parent_key_b));
-                        }
-                    }
-                } else {
-                    non_sibling_keys.push((key_a, parent_key_a));
+        let mut stack_fork_height = vec![0u8; 256]; // store fork height
+        let mut stack_top = 0;
+        let mut leaf_index = 0;
+        while leaf_index < keys.len() {
+            let leaf_key = keys[leaf_index];
+            let fork_height = if leaf_index + 1 < keys.len() {
+                leaf_key.fork_height(&keys[leaf_index + 1])
+            } else {
+                255
+            };
+            for height in 0..=fork_height {
+                if height == fork_height && leaf_index + 1 < keys.len() {
+                    break;
                 }
+                let parent_key = leaf_key.parent_path(height);
+                let is_right = leaf_key.is_right(height);
 
-                for (current_key, parent_key) in non_sibling_keys.into_iter() {
+                // has non-zero sibling
+                if stack_top > 0 && stack_fork_height[stack_top - 1] == height {
+                    stack_top -= 1;
+                } else if leaves_bitmap[leaf_index].get_bit(height) {
                     let parent_branch_key = BranchKey::new(height, parent_key);
                     if let Some(parent_branch) = self.store.get_branch(&parent_branch_key)? {
-                        let sibling = if current_key.is_right(height) {
+                        let sibling = if is_right {
                             parent_branch.left
                         } else {
                             parent_branch.right
                         };
                         if !sibling.is_zero() {
                             proof.push(sibling);
+                        } else {
+                            unreachable!();
                         }
                     } else {
                         // The key is not in the tree (support non-inclusion proof)
                     }
-                    next_keys.push(current_key);
-                    key_idx += 1;
                 }
             }
-            current_keys = core::mem::take(&mut next_keys);
+            debug_assert!(stack_top < 256);
+            stack_fork_height[stack_top] = fork_height;
+            stack_top += 1;
+            leaf_index += 1;
         }
+        assert_eq!(stack_top, 1);
         Ok(MerkleProof::new(leaves_bitmap, proof))
     }
 }
