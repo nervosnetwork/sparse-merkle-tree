@@ -1,6 +1,6 @@
 [package]
 name = "sparse-merkle-tree"
-version = "0.4.0-rc1"
+version = "0.5.0-rc1"
 authors = ["jjy <jjyruby@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -18,12 +18,12 @@ blake2b = ["blake2b-rs"]
 [dependencies]
 cfg-if = "0.1"
 blake2b-rs = { version = "0.1", optional = true }
-hex = "0.4"
 
 [dev-dependencies]
 proptest = "0.9"
 criterion = "0.2"
 rand = "0.7"
+hex = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"
