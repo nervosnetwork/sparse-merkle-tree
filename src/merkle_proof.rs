@@ -49,8 +49,8 @@ impl MerkleProof {
         &self.proof
     }
 
-    /// convert merkle proof into CompiledMerkleProof
-    pub fn compile(self) -> CompiledMerkleProof {
+    /// convert merkle proof into SerializedMerkleProof
+    pub fn serialize(self) -> SerializedMerkleProof {
         let (leaves_bitmap, proof) = self.take();
         let leaves_len = leaves_bitmap.len();
         let mut data = vec![0u8; (leaves_len + proof.len()) * 32];
@@ -62,7 +62,7 @@ impl MerkleProof {
             let offset = (leaves_len + idx) * 32;
             data[offset..offset + 32].copy_from_slice(sibling_node_hash.as_slice());
         }
-        CompiledMerkleProof(data)
+        SerializedMerkleProof(data)
     }
 
     /// Compute root from proof
@@ -157,9 +157,9 @@ impl MerkleProof {
 
 /// An structure for verify merkle proof by raw binary
 #[derive(Debug, Clone)]
-pub struct CompiledMerkleProof(pub Vec<u8>);
+pub struct SerializedMerkleProof(pub Vec<u8>);
 
-impl CompiledMerkleProof {
+impl SerializedMerkleProof {
     pub fn compute_root<H: Hasher + Default>(&self, leaves: Vec<(H256, H256)>) -> Result<H256> {
         if self.0.len() % 32 != 0 {
             return Err(Error::CorruptedProof);
@@ -195,7 +195,7 @@ impl CompiledMerkleProof {
     }
 }
 
-impl Into<Vec<u8>> for CompiledMerkleProof {
+impl Into<Vec<u8>> for SerializedMerkleProof {
     fn into(self) -> Vec<u8> {
         self.0
     }

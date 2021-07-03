@@ -10,7 +10,7 @@ type Leave = ([u8; 32], [u8; 32]);
 #[derive(Default, Serialize, Deserialize)]
 struct Proof {
     leaves: Vec<Leave>,
-    compiled_proof: Vec<u8>,
+    serialized_proof: Vec<u8>,
     error: Option<String>,
 }
 
@@ -62,22 +62,22 @@ fn new_smt(pairs: Vec<(H256, H256)>) -> SMT {
 //         let keys = leaves_to_proof.iter().map(|(k, _v)| *k).collect();
 //         let proof = match smt.merkle_proof(keys) {
 //             Ok(proof) => {
-//                 let compiled_proof = proof
+//                 let serialized_proof = proof
 //                     .clone()
-//                     .compile(leaves_to_proof.clone())
-//                     .expect("compile proof");
+//                     .serialize(leaves_to_proof.clone())
+//                     .expect("serialize proof");
 //                 Proof {
 //                     leaves: leaves_to_proof
 //                         .into_iter()
 //                         .map(|(k, v)| (k.into(), v.into()))
 //                         .collect(),
-//                     compiled_proof: compiled_proof.into(),
+//                     serialized_proof: serialized_proof.into(),
 //                     error: None,
 //                 }
 //             }
 //             Err(err) => Proof {
 //                 leaves: Default::default(),
-//                 compiled_proof: Default::default(),
+//                 serialized_proof: Default::default(),
 //                 error: Some(format!("{}", err)),
 //             },
 //         };
@@ -127,12 +127,12 @@ fn run_test_case(case: Case) -> Result<()> {
     for proof in proofs {
         let Proof {
             leaves,
-            compiled_proof,
+            serialized_proof,
             error,
         } = proof;
         let keys = leaves.iter().map(|(k, _v)| (*k).into()).collect();
-        let actual_compiled_proof: Vec<u8> = match smt.merkle_proof(keys) {
-            Ok(proof) => proof.compile().into(),
+        let actual_serialized_proof: Vec<u8> = match smt.merkle_proof(keys) {
+            Ok(proof) => proof.serialize().into(),
             Err(err) => {
                 let expected_error = error.expect("expected error");
                 assert_eq!(expected_error, format!("{}", err));
@@ -140,7 +140,7 @@ fn run_test_case(case: Case) -> Result<()> {
             }
         };
 
-        assert_eq!(compiled_proof, actual_compiled_proof, "proof");
+        assert_eq!(serialized_proof, actual_serialized_proof, "proof");
     }
 
     Ok(())

@@ -50,13 +50,13 @@ impl core::fmt::Display for Error {
                 write!(f, "Backend store error: {}", err_msg)?;
             }
             Error::CorruptedStack => {
-                write!(f, "Corrupted compiled proof stack")?;
+                write!(f, "Corrupted serialized proof stack")?;
             }
             Error::NonSiblings => {
-                write!(f, "Merging non-siblings in compiled stack")?;
+                write!(f, "Merging non-siblings in serialized stack")?;
             }
             Error::InvalidCode(code) => {
-                write!(f, "Invalid compiled proof code: {}", code)?;
+                write!(f, "Invalid serialized proof code: {}", code)?;
             }
             Error::NonMergableRange => {
                 write!(f, "Ranges can not be merged")?;
