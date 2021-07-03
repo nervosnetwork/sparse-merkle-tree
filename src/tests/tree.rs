@@ -713,3 +713,26 @@ fn test_replay_to_pass_proof() {
         .verify::<Blake2bHasher>(smt.root(), leaf_a_bl)
         .expect("verify serialized proof"));
 }
+
+#[test]
+fn test_sibling_leaf() {
+    fn gen_rand_h256() -> H256 {
+        let mut rng = rand::thread_rng();
+        let rand_data: [u8; 32] = rng.gen();
+        H256::from(rand_data)
+    }
+    let rand_key = gen_rand_h256();
+    let mut sibling_key = rand_key.clone();
+    if rand_key.is_right(0) {
+        sibling_key.clear_bit(0);
+    } else {
+        sibling_key.set_bit(0);
+    }
+    let pairs = vec![(rand_key, gen_rand_h256()), (sibling_key, gen_rand_h256())];
+    let keys = vec![rand_key, sibling_key];
+    let smt = new_smt(pairs.clone());
+    let proof = smt.merkle_proof(keys.clone()).expect("gen proof");
+    assert!(proof
+        .verify::<Blake2bHasher>(smt.root(), pairs)
+        .expect("verify"));
+}

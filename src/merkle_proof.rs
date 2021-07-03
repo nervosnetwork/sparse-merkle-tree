@@ -94,11 +94,12 @@ impl MerkleProof {
             let fork_height = if leaf_index + 1 < leaves.len() {
                 leaf_key.fork_height(&leaves[leaf_index + 1].0)
             } else {
-                255
+                core::u8::MAX
             };
             let mut current_node = hash_leaf::<H>(&leaf_key, &value);
             for height in 0..=fork_height {
                 if height == fork_height && leaf_index + 1 < leaves.len() {
+                    // If it's not final round, we don't need to merge to root (height=255)
                     break;
                 }
                 let parent_key = leaf_key.parent_path(height);

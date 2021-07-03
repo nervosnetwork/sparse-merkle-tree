@@ -28,13 +28,6 @@ pub struct BranchNode {
     right: H256,
 }
 
-/// A leaf in the SMT
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub struct LeafNode<V> {
-    pub key: H256,
-    pub value: V,
-}
-
 /// Sparse merkle tree
 #[derive(Default, Debug)]
 pub struct SparseMerkleTree<H, V, S> {
@@ -85,7 +78,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         let node = hash_leaf::<H>(&key, &value.to_h256());
         // notice when value is zero the leaf is deleted, so we do not need to store it
         if !node.is_zero() {
-            self.store.insert_leaf(key, LeafNode { key, value })?;
+            self.store.insert_leaf(key, value)?;
         } else {
             self.store.remove_leaf(&key)?;
         }
@@ -132,11 +125,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         if self.is_empty() {
             return Ok(V::zero());
         }
-        Ok(self
-            .store
-            .get_leaf(key)?
-            .map(|node| node.value)
-            .unwrap_or_else(V::zero))
+        Ok(self.store.get_leaf(key)?.unwrap_or_else(V::zero))
     }
 
     /// Generate merkle proof
@@ -180,10 +169,11 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
             let fork_height = if leaf_index + 1 < keys.len() {
                 leaf_key.fork_height(&keys[leaf_index + 1])
             } else {
-                255
+                core::u8::MAX
             };
             for height in 0..=fork_height {
                 if height == fork_height && leaf_index + 1 < keys.len() {
+                    // If it's not final round, we don't need to merge to root (height=255)
                     break;
                 }
                 let parent_key = leaf_key.parent_path(height);
