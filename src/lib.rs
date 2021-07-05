@@ -74,7 +74,7 @@ pub mod traits;
 pub mod tree;
 
 pub use h256::H256;
-pub use merkle_proof::{MerkleProof, SerializedMerkleProof};
+pub use merkle_proof::{CompiledMerkleProof, MerkleProof};
 pub use tree::SparseMerkleTree;
 
 /// Expected path size: log2(256) * 2, used for hint vector capacity

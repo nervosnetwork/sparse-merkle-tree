@@ -267,20 +267,23 @@ fn test_update_tree_store(key: H256, value: H256, value2: H256) {
 }
 
 fn test_merkle_proof(key: H256, value: H256) {
-    const EXPECTED_PROOF_SIZE: usize = 16;
+    const EXPECTED_SIBLING_SIZE: usize = 1;
 
     let mut tree = SMT::default();
     tree.update(key, value).expect("update");
     if !tree.is_empty() {
         let proof = tree.merkle_proof(vec![key]).expect("proof");
-        let serialized_proof = proof.clone().serialize();
-        assert!(proof.proof().len() < EXPECTED_PROOF_SIZE);
+        let compiled_proof = proof
+            .clone()
+            .compile(vec![(key, value)])
+            .expect("compile proof");
+        assert!(proof.siblings().len() < EXPECTED_SIBLING_SIZE);
         assert!(proof
             .verify::<Blake2bHasher>(tree.root(), vec![(key, value)])
             .expect("verify"));
-        assert!(serialized_proof
+        assert!(compiled_proof
             .verify::<Blake2bHasher>(tree.root(), vec![(key, value)])
-            .expect("serialized verify"));
+            .expect("compiled verify"));
     }
 }
 
@@ -385,9 +388,9 @@ proptest! {
         let smt = new_smt(pairs.clone());
         for (k, v) in pairs {
             let proof = smt.merkle_proof(vec![k]).expect("gen proof");
-            let serialized_proof = proof.clone().serialize();
+            let compiled_proof = proof.clone().compile(vec![(k, v)]).expect("compile proof");
             assert!(proof.verify::<Blake2bHasher>(smt.root(), vec![(k, v)]).expect("verify proof"));
-            assert!(serialized_proof.verify::<Blake2bHasher>(smt.root(), vec![(k, v)]).expect("verify serialized proof"));
+            assert!(compiled_proof.verify::<Blake2bHasher>(smt.root(), vec![(k, v)]).expect("verify compiled proof"));
         }
     }
 
@@ -396,9 +399,9 @@ proptest! {
         let smt = new_smt(pairs.clone());
         for (k, v) in pairs {
             let proof = smt.merkle_proof(vec![k]).expect("gen proof");
-            let serialized_proof = proof.clone().serialize();
+            let compiled_proof = proof.clone().compile(vec![(k, v)]).expect("compile proof");
             assert!(proof.verify::<Blake2bHasher>(smt.root(), vec![(k, v)]).expect("verify proof"));
-            assert!(serialized_proof.verify::<Blake2bHasher>(smt.root(), vec![(k, v)]).expect("verify serialized proof"));
+            assert!(compiled_proof.verify::<Blake2bHasher>(smt.root(), vec![(k, v)]).expect("verify compiled proof"));
         }
     }
 
@@ -407,9 +410,9 @@ proptest! {
         let smt = new_smt(pairs.clone());
         let proof = smt.merkle_proof(pairs.iter().take(n).map(|(k, _v)| *k).collect()).expect("gen proof");
         let data: Vec<(H256, H256)> = pairs.into_iter().take(n).collect();
-        let serialized_proof = proof.clone().serialize();
+        let compiled_proof = proof.clone().compile(data.clone()).expect("compile proof");
         assert!(proof.verify::<Blake2bHasher>(smt.root(), data.clone()).expect("verify proof"));
-        assert!(serialized_proof.verify::<Blake2bHasher>(smt.root(), data).expect("verify serialized proof"));
+        assert!(compiled_proof.verify::<Blake2bHasher>(smt.root(), data).expect("verify compiled proof"));
     }
 
     #[test]
@@ -418,9 +421,9 @@ proptest! {
         let smt = new_smt(pairs.clone());
         let proof = smt.merkle_proof(pairs.iter().take(n).map(|(k, _v)| *k).collect()).expect("gen proof");
         let data: Vec<(H256, H256)> = pairs.into_iter().take(n).collect();
-        let serialized_proof = proof.clone().serialize();
+        let compiled_proof = proof.clone().compile(data.clone()).expect("compile proof");
         assert!(proof.verify::<Blake2bHasher>(smt.root(), data.clone()).expect("verify proof"));
-        assert!(serialized_proof.verify::<Blake2bHasher>(smt.root(), data).expect("verify serialized proof"));
+        assert!(compiled_proof.verify::<Blake2bHasher>(smt.root(), data).expect("verify compiled proof"));
     }
 
     #[test]
@@ -429,9 +432,9 @@ proptest! {
         let non_exists_keys: Vec<_> = pairs2.into_iter().map(|(k, _v)|k).collect();
         let proof = smt.merkle_proof(non_exists_keys.clone()).expect("gen proof");
         let data: Vec<(H256, H256)> = non_exists_keys.into_iter().map(|k|(k, H256::zero())).collect();
-        let serialized_proof = proof.clone().serialize();
+        let compiled_proof = proof.clone().compile(data.clone()).expect("compile proof");
         assert!(proof.verify::<Blake2bHasher>(smt.root(), data.clone()).expect("verify proof"));
-        assert!(serialized_proof.verify::<Blake2bHasher>(smt.root(), data).expect("verify serialized proof"));
+        assert!(compiled_proof.verify::<Blake2bHasher>(smt.root(), data).expect("verify compiled proof"));
     }
 
     #[test]
@@ -445,9 +448,9 @@ proptest! {
         keys.dedup();
         let proof = smt.merkle_proof(keys.clone()).expect("gen proof");
         let data: Vec<(H256, H256)> = keys.into_iter().map(|k|(k, smt.get(&k).expect("get"))).collect();
-        let serialized_proof = proof.clone().serialize();
+        let compiled_proof = proof.clone().compile(data.clone()).expect("compile proof");
         assert!(proof.verify::<Blake2bHasher>(smt.root(), data.clone()).expect("verify proof"));
-        assert!(serialized_proof.verify::<Blake2bHasher>(smt.root(), data).expect("verify serialized proof"));
+        assert!(compiled_proof.verify::<Blake2bHasher>(smt.root(), data).expect("verify compiled proof"));
     }
 
     #[test]
@@ -516,14 +519,14 @@ proptest! {
     ){
         let proof = MerkleProof::new(leaves_bitmap, proof);
         // test compute_root not crash
-        let _result = proof.clone().compute_root::<Blake2bHasher>(leaves);
-        // test serialize not crash
-        let _result = proof.serialize();
+        let _result = proof.clone().compute_root::<Blake2bHasher>(leaves.clone());
+        // test compile not crash
+        let _result = proof.compile(leaves);
     }
 
     #[test]
-    fn test_try_crash_serialized_merkle_proof((leaves, _n) in leaves(0, 30)) {
-        // construct cases to crush serialized merkle proof
+    fn test_try_crash_compiled_merkle_proof((leaves, _n) in leaves(0, 30)) {
+        // construct cases to crush compiled merkle proof
         let case1 = [0x50, 0x48, 0x4C].to_vec();
         let case2 = [0x48, 0x4C].to_vec();
         let case3 = [0x4C, 0x50].to_vec();
@@ -539,22 +542,22 @@ proptest! {
                      0, 0, 0, 0].to_vec();
 
         for case in [case1, case2, case3, case4, case5, case6, case7].iter() {
-            let proof = SerializedMerkleProof(case.to_vec());
+            let proof = CompiledMerkleProof(case.to_vec());
             // test compute root not crash
             let _result = proof.compute_root::<Blake2bHasher>(leaves.clone());
         }
     }
 }
 
+fn parse_h256(s: &str) -> H256 {
+    let data = hex::decode(s).unwrap();
+    let mut inner = [0u8; 32];
+    inner.copy_from_slice(&data);
+    H256::from(inner)
+}
+
 #[test]
 fn test_v0_2_broken_sample() {
-    fn parse_h256(s: &str) -> H256 {
-        let data = hex::decode(s).unwrap();
-        let mut inner = [0u8; 32];
-        inner.copy_from_slice(&data);
-        H256::from(inner)
-    }
-
     let keys = vec![
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000002",
@@ -690,7 +693,10 @@ fn test_replay_to_pass_proof() {
     let proofc = smt
         .merkle_proof(leaf_c.clone().into_iter().map(|(k, _)| k).collect())
         .expect("gen proof");
-    let serialized_proof = proofc.clone().serialize();
+    let compiled_proof = proofc
+        .clone()
+        .compile(leaf_c.clone())
+        .expect("compile proof");
 
     println!("verify ok case");
     assert!(proofc
@@ -708,10 +714,10 @@ fn test_replay_to_pass_proof() {
         .verify::<Blake2bHasher>(smt.root(), leaf_a_bl.clone())
         .expect("verify"));
 
-    println!("serialized merkle proof, leaf is faked");
-    assert!(!serialized_proof
+    println!("compiled merkle proof, leaf is faked");
+    assert!(!compiled_proof
         .verify::<Blake2bHasher>(smt.root(), leaf_a_bl)
-        .expect("verify serialized proof"));
+        .expect("verify compiled proof"));
 }
 
 #[test]
@@ -722,7 +728,7 @@ fn test_sibling_leaf() {
         H256::from(rand_data)
     }
     let rand_key = gen_rand_h256();
-    let mut sibling_key = rand_key.clone();
+    let mut sibling_key = rand_key;
     if rand_key.is_right(0) {
         sibling_key.clear_bit(0);
     } else {
@@ -731,7 +737,7 @@ fn test_sibling_leaf() {
     let pairs = vec![(rand_key, gen_rand_h256()), (sibling_key, gen_rand_h256())];
     let keys = vec![rand_key, sibling_key];
     let smt = new_smt(pairs.clone());
-    let proof = smt.merkle_proof(keys.clone()).expect("gen proof");
+    let proof = smt.merkle_proof(keys).expect("gen proof");
     assert!(proof
         .verify::<Blake2bHasher>(smt.root(), pairs)
         .expect("verify"));
