@@ -267,7 +267,7 @@ fn test_update_tree_store(key: H256, value: H256, value2: H256) {
 }
 
 fn test_merkle_proof(key: H256, value: H256) {
-    const EXPECTED_SIBLING_SIZE: usize = 1;
+    const EXPECTED_MERKLE_PATH_SIZE: usize = 1;
 
     let mut tree = SMT::default();
     tree.update(key, value).expect("update");
@@ -277,7 +277,7 @@ fn test_merkle_proof(key: H256, value: H256) {
             .clone()
             .compile(vec![(key, value)])
             .expect("compile proof");
-        assert!(proof.siblings().len() < EXPECTED_SIBLING_SIZE);
+        assert!(proof.merkle_paths().len() < EXPECTED_MERKLE_PATH_SIZE);
         assert!(proof
             .verify::<Blake2bHasher>(tree.root(), vec![(key, value)])
             .expect("verify"));

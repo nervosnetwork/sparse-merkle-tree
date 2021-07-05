@@ -161,7 +161,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         }
 
         let mut proof: Vec<H256> = Default::default();
-        let mut stack_fork_height = vec![0u8; 256]; // store fork height
+        let mut stack_fork_height = [0u8; 256]; // store fork height
         let mut stack_top = 0;
         let mut leaf_index = 0;
         while leaf_index < keys.len() {
