@@ -1,6 +1,6 @@
 use crate::{
     error::{Error, Result},
-    merge::{hash_leaf, merge},
+    merge::merge,
     merkle_proof::MerkleProof,
     traits::{Hasher, Store, Value},
     vec::Vec,
@@ -75,7 +75,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
     /// set to zero value to delete a key
     pub fn update(&mut self, key: H256, value: V) -> Result<&H256> {
         // compute and store new leaf
-        let node = hash_leaf::<H>(&key, &value.to_h256());
+        let node = value.to_h256();
         // notice when value is zero the leaf is deleted, so we do not need to store it
         if !node.is_zero() {
             self.store.insert_leaf(key, value)?;

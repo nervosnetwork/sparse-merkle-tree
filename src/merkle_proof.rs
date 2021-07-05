@@ -1,6 +1,6 @@
 use crate::{
     error::{Error, Result},
-    merge::{hash_leaf, merge},
+    merge::merge,
     traits::Hasher,
     vec::Vec,
     H256,
@@ -175,7 +175,7 @@ impl MerkleProof {
             } else {
                 core::u8::MAX
             };
-            let mut current_node = hash_leaf::<H>(&leaf_key, &value);
+            let mut current_node = value;
             for height in 0..=fork_height {
                 if height == fork_height && leaf_index + 1 < leaves.len() {
                     // If it's not final round, we don't need to merge to root (height=255)
@@ -249,13 +249,13 @@ impl CompiledMerkleProof {
             let code = self.0[program_index];
             program_index += 1;
             match code {
-                // L : hash leaf
+                // L : push leaf value
                 0x4C => {
                     if leave_index >= leaves.len() {
                         return Err(Error::CorruptedStack);
                     }
                     let (k, v) = leaves[leave_index];
-                    stack.push((0, k, hash_leaf::<H>(&k, &v)));
+                    stack.push((0, k, v));
                     leave_index += 1;
                 }
                 // P : hash stack top item with sibling node in proof
