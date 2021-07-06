@@ -11,17 +11,17 @@ pub struct MerkleProof {
     // leaf bitmap, bitmap.get_bit(height) is true means there need a non zero sibling in this height
     leaves_bitmap: Vec<H256>,
     // needed sibling node hash
-    merkle_paths: Vec<H256>,
+    merkle_path: Vec<H256>,
 }
 
 impl MerkleProof {
     /// Create MerkleProof
     /// leaves_bitmap: leaf bitmap, bitmap.get_bit(height) is true means there need a non zero sibling in this height
     /// proof: needed sibling node hash
-    pub fn new(leaves_bitmap: Vec<H256>, merkle_paths: Vec<H256>) -> Self {
+    pub fn new(leaves_bitmap: Vec<H256>, merkle_path: Vec<H256>) -> Self {
         MerkleProof {
             leaves_bitmap,
-            merkle_paths,
+            merkle_path,
         }
     }
 
@@ -29,9 +29,9 @@ impl MerkleProof {
     pub fn take(self) -> (Vec<H256>, Vec<H256>) {
         let MerkleProof {
             leaves_bitmap,
-            merkle_paths,
+            merkle_path,
         } = self;
-        (leaves_bitmap, merkle_paths)
+        (leaves_bitmap, merkle_path)
     }
 
     /// number of leaves required by this merkle proof
@@ -45,8 +45,8 @@ impl MerkleProof {
     }
 
     /// return sibling node hashes
-    pub fn merkle_paths(&self) -> &Vec<H256> {
-        &self.merkle_paths
+    pub fn merkle_path(&self) -> &Vec<H256> {
+        &self.merkle_path
     }
 
     pub fn compile(self, mut leaves: Vec<(H256, H256)>) -> Result<CompiledMerkleProof> {
@@ -61,9 +61,9 @@ impl MerkleProof {
         // sort leaves
         leaves.sort_unstable_by_key(|(k, _v)| *k);
 
-        let (leaves_bitmap, merkle_paths) = self.take();
+        let (leaves_bitmap, merkle_path) = self.take();
 
-        let mut proof: Vec<u8> = Vec::with_capacity(merkle_paths.len() * 33 + leaves.len());
+        let mut proof: Vec<u8> = Vec::with_capacity(merkle_path.len() * 33 + leaves.len());
         let mut stack_fork_height = [0u8; 256]; // store fork height
         let mut stack_top = 0;
         let mut leaf_index = 0;
@@ -87,10 +87,10 @@ impl MerkleProof {
                         stack_top -= 1;
                         (Some(0x48), None)
                     } else if leaves_bitmap[leaf_index].get_bit(height) {
-                        if merkle_path_index >= merkle_paths.len() {
+                        if merkle_path_index >= merkle_path.len() {
                             return Err(Error::CorruptedProof);
                         }
-                        let node_hash = merkle_paths[merkle_path_index];
+                        let node_hash = merkle_path[merkle_path_index];
                         merkle_path_index += 1;
                         (Some(0x50), Some(node_hash))
                     } else {
@@ -138,7 +138,7 @@ impl MerkleProof {
         if leaf_index != leaves.len() {
             return Err(Error::CorruptedProof);
         }
-        if merkle_path_index != merkle_paths.len() {
+        if merkle_path_index != merkle_path.len() {
             return Err(Error::CorruptedProof);
         }
         Ok(CompiledMerkleProof(proof))
@@ -161,7 +161,7 @@ impl MerkleProof {
         // sort leaves
         leaves.sort_unstable_by_key(|(k, _v)| *k);
 
-        let (leaves_bitmap, merkle_paths) = self.take();
+        let (leaves_bitmap, merkle_path) = self.take();
 
         let mut stack_fork_height = [0u8; 256]; // store fork height
         let mut stack = [H256::zero(); 256]; // store node hash
@@ -188,10 +188,10 @@ impl MerkleProof {
                     stack_top -= 1;
                     node_hash
                 } else if leaves_bitmap[leaf_index].get_bit(height) {
-                    if merkle_path_index >= merkle_paths.len() {
+                    if merkle_path_index >= merkle_path.len() {
                         return Err(Error::CorruptedProof);
                     }
-                    let node_hash = merkle_paths[merkle_path_index];
+                    let node_hash = merkle_path[merkle_path_index];
                     merkle_path_index += 1;
                     node_hash
                 } else {
@@ -217,7 +217,7 @@ impl MerkleProof {
         if leaf_index != leaves.len() {
             return Err(Error::CorruptedProof);
         }
-        if merkle_path_index != merkle_paths.len() {
+        if merkle_path_index != merkle_path.len() {
             return Err(Error::CorruptedProof);
         }
         Ok(stack[0])
@@ -243,7 +243,7 @@ impl CompiledMerkleProof {
     pub fn compute_root<H: Hasher + Default>(&self, mut leaves: Vec<(H256, H256)>) -> Result<H256> {
         leaves.sort_unstable_by_key(|(k, _v)| *k);
         let mut program_index = 0;
-        let mut leave_index = 0;
+        let mut leaf_index = 0;
         let mut stack: Vec<(u16, H256, H256)> = Vec::new();
         while program_index < self.0.len() {
             let code = self.0[program_index];
@@ -251,12 +251,12 @@ impl CompiledMerkleProof {
             match code {
                 // L : push leaf value
                 0x4C => {
-                    if leave_index >= leaves.len() {
+                    if leaf_index >= leaves.len() {
                         return Err(Error::CorruptedStack);
                     }
-                    let (k, v) = leaves[leave_index];
+                    let (k, v) = leaves[leaf_index];
                     stack.push((0, k, v));
-                    leave_index += 1;
+                    leaf_index += 1;
                 }
                 // P : hash stack top item with sibling node in proof
                 0x50 => {
@@ -345,6 +345,9 @@ impl CompiledMerkleProof {
             return Err(Error::CorruptedStack);
         }
         if stack[0].0 != 256 {
+            return Err(Error::CorruptedProof);
+        }
+        if leaf_index != leaves.len() {
             return Err(Error::CorruptedProof);
         }
         Ok(stack[0].2)

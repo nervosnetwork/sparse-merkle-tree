@@ -277,7 +277,7 @@ fn test_merkle_proof(key: H256, value: H256) {
             .clone()
             .compile(vec![(key, value)])
             .expect("compile proof");
-        assert!(proof.merkle_paths().len() < EXPECTED_MERKLE_PATH_SIZE);
+        assert!(proof.merkle_path().len() < EXPECTED_MERKLE_PATH_SIZE);
         assert!(proof
             .verify::<Blake2bHasher>(tree.root(), vec![(key, value)])
             .expect("verify"));
