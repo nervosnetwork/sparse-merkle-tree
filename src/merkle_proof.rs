@@ -244,7 +244,7 @@ impl CompiledMerkleProof {
         leaves.sort_unstable_by_key(|(k, _v)| *k);
         let mut program_index = 0;
         let mut leave_index = 0;
-        let mut stack: Vec<(u8, H256, H256)> = Vec::new();
+        let mut stack: Vec<(u16, H256, H256)> = Vec::new();
         while program_index < self.0.len() {
             let code = self.0[program_index];
             program_index += 1;
@@ -270,14 +270,18 @@ impl CompiledMerkleProof {
                     data.copy_from_slice(&self.0[program_index..program_index + 32]);
                     program_index += 32;
                     let sibling_node = H256::from(data);
-                    let (height, key, value) = stack.pop().unwrap();
+                    let (height_u16, key, value) = stack.pop().unwrap();
+                    if height_u16 > 255 {
+                        return Err(Error::CorruptedProof);
+                    }
+                    let height = height_u16 as u8;
                     let parent_key = key.parent_path(height);
                     let parent = if key.get_bit(height) {
                         merge::<H>(height, &parent_key, &sibling_node, &value)
                     } else {
                         merge::<H>(height, &parent_key, &value, &sibling_node)
                     };
-                    stack.push((height.wrapping_add(1), parent_key, parent));
+                    stack.push((height_u16 + 1, parent_key, parent));
                 }
                 // H : pop 2 items in stack hash them then push the result
                 0x48 => {
@@ -289,14 +293,18 @@ impl CompiledMerkleProof {
                     if height_a != height_b {
                         return Err(Error::CorruptedProof);
                     }
-                    let (height, key) = (height_a, key_a);
+                    let (height_u16, key) = (height_a, key_a);
+                    if height_u16 > 255 {
+                        return Err(Error::CorruptedProof);
+                    }
+                    let height = height_u16 as u8;
                     let parent_key = key.parent_path(height);
                     let parent = if key.get_bit(height) {
                         merge::<H>(height, &parent_key, &value_b, &value_a)
                     } else {
                         merge::<H>(height, &parent_key, &value_a, &value_b)
                     };
-                    stack.push((height.wrapping_add(1), parent_key, parent));
+                    stack.push((height_u16 + 1, parent_key, parent));
                 }
                 // O : hash stack top item with n zero values
                 0x4F => {
@@ -310,13 +318,17 @@ impl CompiledMerkleProof {
                     program_index += 1;
                     let zero_count: u16 = if n == 0 { 256 } else { n as u16 };
                     let (base_height, key, mut value) = stack.pop().unwrap();
+                    if base_height > 255 {
+                        return Err(Error::CorruptedProof);
+                    }
                     let mut parent_key = key;
-                    let mut height = base_height;
+                    let mut height_u16 = base_height;
                     for idx in 0..zero_count {
-                        if base_height as u16 + idx > 255 {
+                        if base_height + idx > 255 {
                             return Err(Error::CorruptedProof);
                         }
-                        height = base_height + idx as u8;
+                        height_u16 = base_height + idx;
+                        let height = height_u16 as u8;
                         parent_key = key.parent_path(height);
                         value = if key.get_bit(height) {
                             merge::<H>(height, &parent_key, &H256::zero(), &value)
@@ -324,7 +336,7 @@ impl CompiledMerkleProof {
                             merge::<H>(height, &parent_key, &value, &H256::zero())
                         };
                     }
-                    stack.push((height.wrapping_add(1), parent_key, value));
+                    stack.push((height_u16 + 1, parent_key, value));
                 }
                 _ => return Err(Error::InvalidCode(code)),
             }
@@ -332,7 +344,7 @@ impl CompiledMerkleProof {
         if stack.len() != 1 {
             return Err(Error::CorruptedStack);
         }
-        if stack[0].0 != 0 {
+        if stack[0].0 != 256 {
             return Err(Error::CorruptedProof);
         }
         Ok(stack[0].2)
