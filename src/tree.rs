@@ -4,7 +4,7 @@ use crate::{
     merkle_proof::MerkleProof,
     traits::{Hasher, Store, Value},
     vec::Vec,
-    H256,
+    H256, MAX_STACK_SIZE,
 };
 use core::marker::PhantomData;
 
@@ -161,7 +161,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         }
 
         let mut proof: Vec<H256> = Default::default();
-        let mut stack_fork_height = [0u8; 256]; // store fork height
+        let mut stack_fork_height = [0u8; MAX_STACK_SIZE]; // store fork height
         let mut stack_top = 0;
         let mut leaf_index = 0;
         while leaf_index < keys.len() {
@@ -200,7 +200,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
                     }
                 }
             }
-            debug_assert!(stack_top < 256);
+            debug_assert!(stack_top < MAX_STACK_SIZE);
             stack_fork_height[stack_top] = fork_height;
             stack_top += 1;
             leaf_index += 1;

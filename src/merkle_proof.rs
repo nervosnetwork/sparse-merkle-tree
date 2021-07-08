@@ -3,7 +3,7 @@ use crate::{
     merge::merge,
     traits::Hasher,
     vec::Vec,
-    H256,
+    H256, MAX_STACK_SIZE,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,7 +64,7 @@ impl MerkleProof {
         let (leaves_bitmap, merkle_path) = self.take();
 
         let mut proof: Vec<u8> = Vec::with_capacity(merkle_path.len() * 33 + leaves.len());
-        let mut stack_fork_height = [0u8; 256]; // store fork height
+        let mut stack_fork_height = [0u8; MAX_STACK_SIZE]; // store fork height
         let mut stack_top = 0;
         let mut leaf_index = 0;
         let mut merkle_path_index = 0;
@@ -126,7 +126,7 @@ impl MerkleProof {
                 proof.push(0x4F);
                 proof.push(n);
             }
-            debug_assert!(stack_top < 256);
+            debug_assert!(stack_top < MAX_STACK_SIZE);
             stack_fork_height[stack_top] = fork_height;
             stack_top += 1;
             leaf_index += 1;
@@ -163,8 +163,8 @@ impl MerkleProof {
 
         let (leaves_bitmap, merkle_path) = self.take();
 
-        let mut stack_fork_height = [0u8; 256]; // store fork height
-        let mut stack = [H256::zero(); 256]; // store node hash
+        let mut stack_fork_height = [0u8; MAX_STACK_SIZE]; // store fork height
+        let mut stack = [H256::zero(); MAX_STACK_SIZE]; // store node hash
         let mut stack_top = 0;
         let mut leaf_index = 0;
         let mut merkle_path_index = 0;
@@ -204,7 +204,7 @@ impl MerkleProof {
                 };
                 current_node = merge::<H>(height, &parent_key, &left, &right);
             }
-            debug_assert!(stack_top < 256);
+            debug_assert!(stack_top < MAX_STACK_SIZE);
             stack_fork_height[stack_top] = fork_height;
             stack[stack_top] = current_node;
             stack_top += 1;
@@ -344,6 +344,7 @@ impl CompiledMerkleProof {
                 }
                 _ => return Err(Error::InvalidCode(code)),
             }
+            debug_assert!(stack.len() <= MAX_STACK_SIZE);
         }
         if stack.len() != 1 {
             return Err(Error::CorruptedStack);

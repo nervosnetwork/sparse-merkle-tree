@@ -742,3 +742,39 @@ fn test_sibling_leaf() {
         .verify::<Blake2bHasher>(smt.root(), pairs)
         .expect("verify"));
 }
+
+#[test]
+fn test_max_stack_size() {
+    fn gen_h256(height: u8) -> H256 {
+        // The key path is first go right `256 - height` times then go left `height` times.
+        let mut key = H256::zero();
+        for h in height..=255 {
+            key.set_bit(h);
+        }
+        key
+    }
+    let mut pairs: Vec<_> = (0..=255)
+        .map(|height| (gen_h256(height), gen_h256(1)))
+        .collect();
+    // Most left key
+    pairs.push((H256::zero(), gen_h256(1)));
+    {
+        // A pair of sibling keys in between
+        let mut left_key = H256::zero();
+        for h in 12..56 {
+            left_key.set_bit(h);
+        }
+        let mut right_key = left_key.clone();
+        right_key.set_bit(0);
+        pairs.push((left_key, gen_h256(1)));
+        pairs.push((right_key, gen_h256(1)));
+    }
+
+    let keys: Vec<_> = pairs.iter().map(|(key, _)| key.clone()).collect();
+    let smt = new_smt(pairs.clone());
+    let proof = smt.merkle_proof(keys).expect("gen proof");
+    let compiled_proof = proof.compile(pairs.clone()).expect("compile proof");
+    assert!(compiled_proof
+        .verify::<Blake2bHasher>(smt.root(), pairs)
+        .expect("verify"));
+}
