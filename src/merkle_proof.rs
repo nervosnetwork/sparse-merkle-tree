@@ -288,23 +288,27 @@ impl CompiledMerkleProof {
                     if stack.len() < 2 {
                         return Err(Error::CorruptedStack);
                     }
-                    let (height_b, _key_b, value_b) = stack.pop().unwrap();
+                    let (height_b, key_b, value_b) = stack.pop().unwrap();
                     let (height_a, key_a, value_a) = stack.pop().unwrap();
                     if height_a != height_b {
                         return Err(Error::CorruptedProof);
                     }
-                    let (height_u16, key) = (height_a, key_a);
-                    if height_u16 > 255 {
+                    if height_a > 255 {
                         return Err(Error::CorruptedProof);
                     }
+                    let height_u16 = height_a;
                     let height = height_u16 as u8;
-                    let parent_key = key.parent_path(height);
-                    let parent = if key.get_bit(height) {
-                        merge::<H>(height, &parent_key, &value_b, &value_a)
+                    let parent_key_a = key_a.parent_path(height);
+                    let parent_key_b = key_b.parent_path(height);
+                    if parent_key_a != parent_key_b {
+                        return Err(Error::CorruptedProof);
+                    }
+                    let parent = if key_a.get_bit(height) {
+                        merge::<H>(height, &parent_key_a, &value_b, &value_a)
                     } else {
-                        merge::<H>(height, &parent_key, &value_a, &value_b)
+                        merge::<H>(height, &parent_key_a, &value_a, &value_b)
                     };
-                    stack.push((height_u16 + 1, parent_key, parent));
+                    stack.push((height_u16 + 1, parent_key_a, parent));
                 }
                 // O : hash stack top item with n zero values
                 0x4F => {
