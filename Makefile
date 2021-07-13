@@ -1,4 +1,4 @@
-default: fmt clippy test bench-test check
+default: fmt clippy test bench-test check test-c-impl
 
 test:
 	cargo test --all --all-features
@@ -14,3 +14,7 @@ fmt:
 
 check:
 	cargo check --no-default-features
+
+test-c-impl:
+	git submodule update --init --recursive
+	cd c/rust-tests && cargo test
