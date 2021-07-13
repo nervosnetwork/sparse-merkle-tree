@@ -6,6 +6,7 @@ use crate::{
     vec::Vec,
     H256, MAX_STACK_SIZE,
 };
+use core::cmp::Ordering;
 use core::marker::PhantomData;
 
 /// The branch key
@@ -18,6 +19,20 @@ pub struct BranchKey {
 impl BranchKey {
     pub fn new(height: u8, node_key: H256) -> BranchKey {
         BranchKey { height, node_key }
+    }
+}
+
+impl PartialOrd for BranchKey {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for BranchKey {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.height.cmp(&other.height) {
+            Ordering::Equal => self.node_key.cmp(&other.node_key),
+            ordering => ordering,
+        }
     }
 }
 
