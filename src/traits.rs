@@ -1,12 +1,13 @@
 use crate::{
     error::Error,
-    tree::{BranchNode, LeafNode},
+    tree::{BranchKey, BranchNode},
     H256,
 };
 
 /// Trait for customize hash function
 pub trait Hasher {
     fn write_h256(&mut self, h: &H256);
+    fn write_byte(&mut self, b: u8);
     fn finish(self) -> H256;
 }
 
@@ -27,10 +28,10 @@ impl Value for H256 {
 
 /// Trait for customize backend storage
 pub trait Store<V> {
-    fn get_branch(&self, node: &H256) -> Result<Option<BranchNode>, Error>;
-    fn get_leaf(&self, leaf_hash: &H256) -> Result<Option<LeafNode<V>>, Error>;
-    fn insert_branch(&mut self, node: H256, branch: BranchNode) -> Result<(), Error>;
-    fn insert_leaf(&mut self, leaf_hash: H256, leaf: LeafNode<V>) -> Result<(), Error>;
-    fn remove_branch(&mut self, node: &H256) -> Result<(), Error>;
-    fn remove_leaf(&mut self, leaf_hash: &H256) -> Result<(), Error>;
+    fn get_branch(&self, branch_key: &BranchKey) -> Result<Option<BranchNode>, Error>;
+    fn get_leaf(&self, leaf_key: &H256) -> Result<Option<V>, Error>;
+    fn insert_branch(&mut self, node_key: BranchKey, branch: BranchNode) -> Result<(), Error>;
+    fn insert_leaf(&mut self, leaf_key: H256, leaf: V) -> Result<(), Error>;
+    fn remove_branch(&mut self, node_key: &BranchKey) -> Result<(), Error>;
+    fn remove_leaf(&mut self, leaf_key: &H256) -> Result<(), Error>;
 }

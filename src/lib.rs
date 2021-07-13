@@ -79,6 +79,8 @@ pub use tree::SparseMerkleTree;
 
 /// Expected path size: log2(256) * 2, used for hint vector capacity
 pub const EXPECTED_PATH_SIZE: usize = 16;
+// Max stack size can be used when verify compiled proof
+pub(crate) const MAX_STACK_SIZE: usize = 257;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {

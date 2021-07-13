@@ -38,6 +38,11 @@ impl H256 {
         self.0[byte_pos as usize] &= !((1 << bit_pos) as u8);
     }
 
+    #[inline]
+    pub fn is_right(&self, height: u8) -> bool {
+        self.get_bit(height)
+    }
+
     pub fn as_slice(&self) -> &[u8] {
         &self.0[..]
     }
