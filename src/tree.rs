@@ -12,8 +12,8 @@ use core::marker::PhantomData;
 /// The branch key
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct BranchKey {
-    height: u8,
-    node_key: H256,
+    pub height: u8,
+    pub node_key: H256,
 }
 
 impl BranchKey {
@@ -39,8 +39,8 @@ impl Ord for BranchKey {
 /// A branch in the SMT
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct BranchNode {
-    left: H256,
-    right: H256,
+    pub left: H256,
+    pub right: H256,
 }
 
 /// Sparse merkle tree
