@@ -252,9 +252,6 @@ int smt_calculate_root(uint8_t *buffer, const smt_state_t *pairs,
         if (stack_top < 2) {
           return ERROR_INVALID_STACK;
         }
-        if (proof_index >= proof_length) {
-          return ERROR_INVALID_PROOF;
-        }
         uint16_t *height_a_ptr = &stack_heights[stack_top - 2];
 
         uint16_t height_a = stack_heights[stack_top - 2];
