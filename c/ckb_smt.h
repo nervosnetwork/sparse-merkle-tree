@@ -383,9 +383,7 @@ typedef struct {
   uint8_t t;
 
   uint8_t value[SMT_VALUE_BYTES];
-  uint8_t base_key[SMT_KEY_BYTES];
   uint8_t zero_bits[SMT_KEY_BYTES];
-  uint8_t base_height;
   uint8_t zero_count;
 } _smt_merge_value_t;
 
@@ -406,14 +404,25 @@ int _smt_merge_value_is_zero(const _smt_merge_value_t *v) {
 const uint8_t _SMT_MERGE_NORMAL = 1;
 const uint8_t _SMT_MERGE_ZEROS = 2;
 
+/* Hash base node into a H256 */
+void _smt_hash_base_node(uint8_t base_height, const uint8_t *base_key,
+                         const uint8_t *base_value,
+                         uint8_t out[SMT_VALUE_BYTES]) {
+  blake2b_state blake2b_ctx;
+  blake2b_init(&blake2b_ctx, SMT_VALUE_BYTES);
+
+  blake2b_update(&blake2b_ctx, &base_height, 1);
+  blake2b_update(&blake2b_ctx, base_key, SMT_KEY_BYTES);
+  blake2b_update(&blake2b_ctx, base_value, SMT_VALUE_BYTES);
+  blake2b_final(&blake2b_ctx, out, SMT_VALUE_BYTES);
+}
+
 void _smt_merge_value_hash(const _smt_merge_value_t *v, uint8_t *out) {
   if (v->t == _SMT_MERGE_VALUE_MERGE_WITH_ZERO) {
     blake2b_state blake2b_ctx;
     blake2b_init(&blake2b_ctx, SMT_VALUE_BYTES);
 
     blake2b_update(&blake2b_ctx, &_SMT_MERGE_ZEROS, 1);
-    blake2b_update(&blake2b_ctx, &(v->base_height), 1);
-    blake2b_update(&blake2b_ctx, v->base_key, SMT_KEY_BYTES);
     blake2b_update(&blake2b_ctx, v->value, SMT_VALUE_BYTES);
     blake2b_update(&blake2b_ctx, v->zero_bits, SMT_KEY_BYTES);
     blake2b_update(&blake2b_ctx, &(v->zero_count), 1);
@@ -436,11 +445,7 @@ void _smt_merge_with_zero(uint8_t height, const uint8_t *node_key,
     out->zero_count++;
   } else {
     out->t = _SMT_MERGE_VALUE_MERGE_WITH_ZERO;
-    out->base_height = height;
-    _smt_fast_memcpy(out->base_key, node_key, SMT_KEY_BYTES);
-    if (out != v) {
-      _smt_fast_memcpy(out->value, v->value, SMT_VALUE_BYTES);
-    }
+    _smt_hash_base_node(height, node_key, v->value, out->value);
     _smt_fast_memset(out->zero_bits, 0, 32);
     if (set_bit) {
       _smt_set_bit(out->zero_bits, height);
@@ -558,17 +563,15 @@ int smt_calculate_root(uint8_t *buffer, const smt_state_t *pairs,
         if (stack_top == 0) {
           return ERROR_INVALID_STACK;
         }
-        if (proof_index + 98 > proof_length) {
+        if (proof_index + 65 > proof_length) {
           return ERROR_INVALID_PROOF;
         }
         _smt_merge_value_t sibling_node;
         sibling_node.t = _SMT_MERGE_VALUE_MERGE_WITH_ZERO;
-        sibling_node.base_height = proof[proof_index];
-        sibling_node.zero_count = proof[proof_index + 1];
-        _smt_fast_memcpy(&sibling_node.base_key, &proof[proof_index + 2], 32);
-        _smt_fast_memcpy(&sibling_node.value, &proof[proof_index + 34], 32);
-        _smt_fast_memcpy(&sibling_node.zero_bits, &proof[proof_index + 66], 32);
-        proof_index += 98;
+        sibling_node.zero_count = proof[proof_index];
+        _smt_fast_memcpy(&sibling_node.value, &proof[proof_index + 1], 32);
+        _smt_fast_memcpy(&sibling_node.zero_bits, &proof[proof_index + 33], 32);
+        proof_index += 65;
         uint8_t *key = stack_keys[stack_top - 1];
         _smt_merge_value_t *value = &stack_values[stack_top - 1];
         uint16_t height = stack_heights[stack_top - 1];

@@ -95,17 +95,13 @@ impl MerkleProof {
                         match node {
                             MergeValue::Value(v) => (Some(0x50), Some(v.as_slice().to_vec())),
                             MergeValue::MergeWithZero {
-                                base_height,
-                                base_key,
-                                base_value,
+                                base_node,
                                 zero_bits,
                                 zero_count,
                             } => {
                                 let mut buffer = Vec::new();
-                                buffer.push(*base_height);
                                 buffer.push(*zero_count);
-                                buffer.extend_from_slice(base_key.as_slice());
-                                buffer.extend_from_slice(base_value.as_slice());
+                                buffer.extend_from_slice(base_node.as_slice());
                                 buffer.extend_from_slice(zero_bits.as_slice());
                                 (Some(0x51), Some(buffer))
                             }
@@ -237,31 +233,23 @@ impl CompiledMerkleProof {
                     if stack.is_empty() {
                         return Err(Error::CorruptedStack);
                     }
-                    if program_index + 98 > self.0.len() {
+                    if program_index + 65 > self.0.len() {
                         return Err(Error::CorruptedProof);
                     }
-                    let base_height = self.0[program_index];
-                    let zero_count = self.0[program_index + 1];
-                    let base_key = {
+                    let zero_count = self.0[program_index];
+                    let base_node = {
                         let mut data = [0u8; 32];
-                        data.copy_from_slice(&self.0[program_index + 2..program_index + 34]);
-                        H256::from(data)
-                    };
-                    let base_value = {
-                        let mut data = [0u8; 32];
-                        data.copy_from_slice(&self.0[program_index + 34..program_index + 66]);
+                        data.copy_from_slice(&self.0[program_index + 1..program_index + 33]);
                         H256::from(data)
                     };
                     let zero_bits = {
                         let mut data = [0u8; 32];
-                        data.copy_from_slice(&self.0[program_index + 66..program_index + 98]);
+                        data.copy_from_slice(&self.0[program_index + 33..program_index + 65]);
                         H256::from(data)
                     };
-                    program_index += 98;
+                    program_index += 65;
                     let sibling_node = MergeValue::MergeWithZero {
-                        base_height,
-                        base_key,
-                        base_value,
+                        base_node,
                         zero_bits,
                         zero_count,
                     };

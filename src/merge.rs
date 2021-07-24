@@ -8,9 +8,7 @@ const MERGE_ZEROS: u8 = 2;
 pub enum MergeValue {
     Value(H256),
     MergeWithZero {
-        base_height: u8,
-        base_key: H256,
-        base_value: H256,
+        base_node: H256,
         zero_bits: H256,
         zero_count: u8,
     },
@@ -36,23 +34,32 @@ impl MergeValue {
         match self {
             MergeValue::Value(v) => *v,
             MergeValue::MergeWithZero {
-                base_height,
-                base_key,
-                base_value,
+                base_node,
                 zero_bits,
                 zero_count,
             } => {
                 let mut hasher = H::default();
                 hasher.write_byte(MERGE_ZEROS);
-                hasher.write_byte(*base_height);
-                hasher.write_h256(base_key);
-                hasher.write_h256(base_value);
+                hasher.write_h256(base_node);
                 hasher.write_h256(zero_bits);
                 hasher.write_byte(*zero_count);
                 hasher.finish()
             }
         }
     }
+}
+
+/// Hash base node into a H256
+pub fn hash_base_node<H: Hasher + Default>(
+    base_height: u8,
+    base_key: &H256,
+    base_value: &H256,
+) -> H256 {
+    let mut hasher = H::default();
+    hasher.write_byte(base_height);
+    hasher.write_h256(base_key);
+    hasher.write_h256(base_value);
+    hasher.finish()
 }
 
 /// Merge two hash with node information
@@ -94,18 +101,15 @@ fn merge_with_zero<H: Hasher + Default>(
             if set_bit {
                 zero_bits.set_bit(height);
             }
+            let base_node = hash_base_node::<H>(height, node_key, v);
             MergeValue::MergeWithZero {
-                base_height: height,
-                base_key: *node_key,
-                base_value: *v,
+                base_node,
                 zero_bits,
                 zero_count: 1,
             }
         }
         MergeValue::MergeWithZero {
-            base_height,
-            base_key,
-            base_value,
+            base_node,
             zero_bits,
             zero_count,
         } => {
@@ -114,9 +118,7 @@ fn merge_with_zero<H: Hasher + Default>(
                 zero_bits.set_bit(height);
             }
             MergeValue::MergeWithZero {
-                base_height: *base_height,
-                base_key: *base_key,
-                base_value: *base_value,
+                base_node: *base_node,
                 zero_bits,
                 zero_count: zero_count.wrapping_add(1),
             }
