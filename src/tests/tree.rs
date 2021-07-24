@@ -1,7 +1,7 @@
 use crate::*;
 use crate::{
-    blake2b::Blake2bHasher, default_store::DefaultStore, error::Error, MerkleProof,
-    SparseMerkleTree,
+    blake2b::Blake2bHasher, default_store::DefaultStore, error::Error, merge::MergeValue,
+    MerkleProof, SparseMerkleTree,
 };
 use proptest::prelude::*;
 use rand::prelude::{Rng, SliceRandom};
@@ -93,8 +93,8 @@ fn test_merkle_root() {
     }
 
     let expected_root: H256 = [
-        25, 31, 27, 18, 99, 195, 111, 162, 55, 149, 47, 19, 211, 144, 13, 233, 103, 239, 1, 29, 67,
-        215, 199, 86, 55, 113, 197, 142, 140, 208, 87, 17,
+        127, 59, 141, 136, 236, 65, 63, 195, 247, 128, 87, 249, 79, 167, 42, 93, 245, 168, 199,
+        243, 180, 214, 34, 85, 132, 149, 56, 235, 179, 253, 196, 115,
     ]
     .into();
     assert_eq!(tree.store().leaves_map().len(), 9);
@@ -324,9 +324,15 @@ fn leaves_bitmap(max_leaves_bitmap: usize) -> impl Strategy<Value = Vec<H256>> {
     )
 }
 
-fn merkle_proof(max_proof: usize) -> impl Strategy<Value = Vec<H256>> {
-    prop::collection::vec(prop::array::uniform32(0u8..), max_proof)
-        .prop_flat_map(|proof| Just(proof.into_iter().map(|item| item.into()).collect()))
+fn merkle_proof(max_proof: usize) -> impl Strategy<Value = Vec<MergeValue>> {
+    prop::collection::vec(prop::array::uniform32(0u8..), max_proof).prop_flat_map(|proof| {
+        Just(
+            proof
+                .into_iter()
+                .map(|item| MergeValue::from_h256(item.into()))
+                .collect(),
+        )
+    })
 }
 
 proptest! {

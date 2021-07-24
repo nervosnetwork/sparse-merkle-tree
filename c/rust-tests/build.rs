@@ -1,4 +1,6 @@
 fn main() {
+    println!("cargo:rerun-if-changed=../ckb_smt.h");
+
     cc::Build::new()
         .file("src/tests/ckb_smt.c")
         .static_flag(true)
