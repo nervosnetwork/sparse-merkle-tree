@@ -11,7 +11,7 @@
 // the awesome musl libc project: https://www.musl-libc.org/
 void *_smt_fast_memset(void *dest, int c, size_t n)
 {
-	unsigned char *s = dest;
+	unsigned char *s = (unsigned char *)dest;
 	size_t k;
 
 	/* Fill head and tail with minimal branching. Each
@@ -99,8 +99,8 @@ void *_smt_fast_memset(void *dest, int c, size_t n)
 
 void *_smt_fast_memcpy(void *restrict dest, const void *restrict src, size_t n)
 {
-	unsigned char *d = dest;
-	const unsigned char *s = src;
+	unsigned char *d = (unsigned char *)dest;
+	const unsigned char *s = (unsigned char *)src;
 
 #ifdef __GNUC__
 
