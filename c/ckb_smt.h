@@ -365,21 +365,32 @@ void _smt_parent_path(uint8_t *key, uint8_t height) {
   }
 }
 
-int _smt_zero_value(const uint8_t *value) {
-  // TODO: is alignment something we should take care of?
-  const uint64_t *p = (const uint64_t *) value;
-  for (int i = 0; i < 4; i++) {
-    if (p[i] != 0) {
+int _smt_is_zero_hash(const uint8_t *value) {
+  for (int i = 0; i < 32; i++) {
+    if (value[i] != 0) {
       return 0;
     }
   }
   return 1;
 }
 
-#define _SMT_MERGE_VALUE_VALUE 0
-#define _SMT_MERGE_VALUE_MERGE_WITH_ZERO 1
+#define _SMT_MERGE_VALUE_ZERO 0
+#define _SMT_MERGE_VALUE_VALUE 1
+#define _SMT_MERGE_VALUE_MERGE_WITH_ZERO 2
 
 typedef struct {
+  /*
+   * A _smt_merge_value_t typed value might be in any of the following
+   * 3 types:
+   *
+   * * When t is _SMT_MERGE_VALUE_ZERO, current variable represents a zero
+   * hash. value will still be set to all zero, it's just that testing t
+   * provides a quicker way to check against zero hashes
+   * * When t is _SMT_MERGE_VALUE_VALUE, current variable represents a non-zero
+   * hash value.
+   * * When t is _SMT_MERGE_VALUE_MERGE_WITH_ZERO, current variable represents
+   * a hash which is combined from a base node value with multiple zeros.
+   */
   uint8_t t;
 
   uint8_t value[SMT_VALUE_BYTES];
@@ -387,18 +398,22 @@ typedef struct {
   uint8_t zero_count;
 } _smt_merge_value_t;
 
-void _smt_merge_value_from_h256(const uint8_t *v, _smt_merge_value_t *out) {
-  out->t = _SMT_MERGE_VALUE_VALUE;
-  _smt_fast_memcpy(out->value, v, SMT_VALUE_BYTES);
-}
-
 void _smt_merge_value_zero(_smt_merge_value_t *out) {
-  out->t = _SMT_MERGE_VALUE_VALUE;
+  out->t = _SMT_MERGE_VALUE_ZERO;
   _smt_fast_memset(out->value, 0, SMT_VALUE_BYTES);
 }
 
+void _smt_merge_value_from_h256(const uint8_t *v, _smt_merge_value_t *out) {
+  if (_smt_is_zero_hash(v)) {
+    _smt_merge_value_zero(out);
+  } else {
+    out->t = _SMT_MERGE_VALUE_VALUE;
+    _smt_fast_memcpy(out->value, v, SMT_VALUE_BYTES);
+  }
+}
+
 int _smt_merge_value_is_zero(const _smt_merge_value_t *v) {
-  return (v->t == _SMT_MERGE_VALUE_VALUE) && _smt_zero_value(v->value);
+  return v->t == _SMT_MERGE_VALUE_ZERO;
 }
 
 const uint8_t _SMT_MERGE_NORMAL = 1;
@@ -492,7 +507,7 @@ void _smt_merge(uint8_t height, const uint8_t *node_key,
 }
 
 const _smt_merge_value_t SMT_ZERO = {
-  .t = _SMT_MERGE_VALUE_VALUE,
+  .t = _SMT_MERGE_VALUE_ZERO,
   .value = {0}
 };
 
