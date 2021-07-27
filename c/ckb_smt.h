@@ -400,7 +400,7 @@ typedef struct {
 
 void _smt_merge_value_zero(_smt_merge_value_t *out) {
   out->t = _SMT_MERGE_VALUE_ZERO;
-  _smt_fast_memset(out->value, 0, 32);
+  _smt_fast_memset(out->value, 0, SMT_VALUE_BYTES);
 }
 
 void _smt_merge_value_from_h256(const uint8_t *v, _smt_merge_value_t *out) {
