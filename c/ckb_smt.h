@@ -7,6 +7,12 @@
 #ifndef _CKB_SPARSE_MERKLE_TREE_H_
 #define _CKB_SPARSE_MERKLE_TREE_H_
 
+#ifdef __GNUC__
+#define RESTRICT __restrict__
+#else
+#define RESTRICT
+#endif
+
 // The faster version of memset & memcpy implementations used here are from
 // the awesome musl libc project: https://www.musl-libc.org/
 void *_smt_fast_memset(void *dest, int c, size_t n)
@@ -97,7 +103,7 @@ void *_smt_fast_memset(void *dest, int c, size_t n)
 	return dest;
 }
 
-void *_smt_fast_memcpy(void *restrict dest, const void *restrict src, size_t n)
+void *_smt_fast_memcpy(void * RESTRICT dest, const void * RESTRICT src, size_t n)
 {
 	unsigned char *d = (unsigned char *)dest;
 	const unsigned char *s = (unsigned char *)src;
@@ -217,6 +223,8 @@ void *_smt_fast_memcpy(void *restrict dest, const void *restrict src, size_t n)
 	for (; n; n--) *d++ = *s++;
 	return dest;
 }
+
+#undef RESTRICT
 
 // users can define a new stack size if needed
 #ifndef SMT_STACK_SIZE

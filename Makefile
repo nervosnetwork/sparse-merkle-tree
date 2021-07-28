@@ -1,4 +1,4 @@
-default: fmt clippy test bench-test check test-c-impl
+default: fmt clippy test bench-test check test-c-impl test-cxx-build
 
 test:
 	cargo test --all --all-features
@@ -18,3 +18,6 @@ check:
 test-c-impl:
 	git submodule update --init --recursive
 	cd c/rust-tests && cargo test
+
+test-cxx-build:
+	g++ -c c/rust-tests/src/tests/ckb_smt.c -I c -o smt.o && rm -rf smt.o
