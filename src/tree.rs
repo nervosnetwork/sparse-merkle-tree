@@ -9,7 +9,14 @@ use crate::{
 use core::cmp::Ordering;
 use core::marker::PhantomData;
 
+cfg_if::cfg_if! {
+    if #[cfg(feature = "serde-rs")] {
+        use serde::{Deserialize, Serialize};
+    }
+}
+
 /// The branch key
+#[cfg_attr(feature = "serde-rs", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct BranchKey {
     pub height: u8,
@@ -37,6 +44,7 @@ impl Ord for BranchKey {
 }
 
 /// A branch in the SMT
+#[cfg_attr(feature = "serde-rs", derive(Serialize, Deserialize))]
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct BranchNode {
     pub left: MergeValue,
@@ -44,7 +52,8 @@ pub struct BranchNode {
 }
 
 /// Sparse merkle tree
-#[derive(Default, Debug)]
+#[cfg_attr(feature = "serde-rs", derive(Serialize, Deserialize))]
+#[derive(Default, Debug, Clone)]
 pub struct SparseMerkleTree<H, V, S> {
     store: S,
     root: H256,

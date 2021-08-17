@@ -1,10 +1,17 @@
 use crate::h256::H256;
 use crate::traits::Hasher;
 
+cfg_if::cfg_if! {
+    if #[cfg(feature = "serde-rs")] {
+        use serde::{Deserialize, Serialize};
+    }
+}
+
 const MERGE_NORMAL: u8 = 1;
 const MERGE_ZEROS: u8 = 2;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
+#[cfg_attr(feature = "serde-rs", derive(Serialize, Deserialize))]
 pub enum MergeValue {
     Value(H256),
     MergeWithZero {

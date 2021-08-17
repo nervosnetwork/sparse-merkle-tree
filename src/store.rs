@@ -5,21 +5,16 @@ use crate::{
     tree::{BranchKey, BranchNode},
     H256,
 };
+use serde::{Deserialize, Serialize};
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "serde-rs")] {
-        use serde::{Deserialize, Serialize};
-    }
-}
-
-#[cfg_attr(feature = "serde-rs", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Default)]
-pub struct DefaultStore<V> {
+#[cfg_attr(feature = "serde-rs", derive(Serialize, Deserialize))]
+pub struct MemStore<V> {
     branches_map: Map<BranchKey, BranchNode>,
     leaves_map: Map<H256, V>,
 }
 
-impl<V> DefaultStore<V> {
+impl<V> MemStore<V> {
     pub fn branches_map(&self) -> &Map<BranchKey, BranchNode> {
         &self.branches_map
     }
@@ -32,7 +27,7 @@ impl<V> DefaultStore<V> {
     }
 }
 
-impl<V: Clone> Store<V> for DefaultStore<V> {
+impl<V: Clone> Store<V> for MemStore<V> {
     fn get_branch(&self, branch_key: &BranchKey) -> Result<Option<BranchNode>, Error> {
         Ok(self.branches_map.get(branch_key).map(Clone::clone))
     }
