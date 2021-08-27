@@ -1,6 +1,6 @@
 [package]
 name = "sparse-merkle-tree"
-version = "0.5.2-rc1"
+version = "0.5.2"
 authors = ["jjy <jjyruby@gmail.com>"]
 edition = "2018"
 license = "MIT"
