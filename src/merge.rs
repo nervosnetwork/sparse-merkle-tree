@@ -20,7 +20,7 @@ impl MergeValue {
     }
 
     pub fn zero() -> Self {
-        MergeValue::Value(H256::zero())
+        MergeValue::Value(H256::empty())
     }
 
     pub fn is_zero(&self) -> bool {
@@ -32,7 +32,7 @@ impl MergeValue {
 
     pub fn hash<H: Hasher + Default>(&self) -> H256 {
         match self {
-            MergeValue::Value(v) => *v,
+            MergeValue::Value(v) => v.clone(),
             MergeValue::MergeWithZero {
                 base_node,
                 zero_bits,
@@ -97,7 +97,7 @@ fn merge_with_zero<H: Hasher + Default>(
 ) -> MergeValue {
     match value {
         MergeValue::Value(v) => {
-            let mut zero_bits = H256::zero();
+            let mut zero_bits = H256::empty();
             if set_bit {
                 zero_bits.set_bit(height);
             }
@@ -113,12 +113,12 @@ fn merge_with_zero<H: Hasher + Default>(
             zero_bits,
             zero_count,
         } => {
-            let mut zero_bits = *zero_bits;
+            let mut zero_bits = zero_bits.clone();
             if set_bit {
                 zero_bits.set_bit(height);
             }
             MergeValue::MergeWithZero {
-                base_node: *base_node,
+                base_node: base_node.clone(),
                 zero_bits,
                 zero_count: zero_count.wrapping_add(1),
             }

@@ -59,7 +59,7 @@ impl MerkleProof {
             });
         }
         // sort leaves
-        leaves.sort_unstable_by_key(|(k, _v)| *k);
+        leaves.sort_unstable_by_key(|(k, _v)| k.clone());
 
         let (leaves_bitmap, merkle_path) = self.take();
 
@@ -69,7 +69,7 @@ impl MerkleProof {
         let mut leaf_index = 0;
         let mut merkle_path_index = 0;
         while leaf_index < leaves.len() {
-            let (leaf_key, _value) = leaves[leaf_index];
+            let (leaf_key, _value) = leaves[leaf_index].clone();
             let fork_height = if leaf_index + 1 < leaves.len() {
                 leaf_key.fork_height(&leaves[leaf_index + 1].0)
             } else {
@@ -184,7 +184,7 @@ pub struct CompiledMerkleProof(pub Vec<u8>);
 
 impl CompiledMerkleProof {
     pub fn compute_root<H: Hasher + Default>(&self, mut leaves: Vec<(H256, H256)>) -> Result<H256> {
-        leaves.sort_unstable_by_key(|(k, _v)| *k);
+        leaves.sort_unstable_by_key(|(k, _v)| k.clone());
         let mut program_index = 0;
         let mut leaf_index = 0;
         let mut stack: Vec<(u16, H256, MergeValue)> = Vec::new();
@@ -197,7 +197,7 @@ impl CompiledMerkleProof {
                     if leaf_index >= leaves.len() {
                         return Err(Error::CorruptedStack);
                     }
-                    let (k, v) = leaves[leaf_index];
+                    let (k, v) = leaves[leaf_index].clone();
                     stack.push((0, k, MergeValue::from_h256(v)));
                     leaf_index += 1;
                 }
@@ -308,7 +308,7 @@ impl CompiledMerkleProof {
                     if base_height > 255 {
                         return Err(Error::CorruptedProof);
                     }
-                    let mut parent_key = key;
+                    let mut parent_key = key.clone();
                     let mut height_u16 = base_height;
                     for idx in 0..zero_count {
                         if base_height + idx > 255 {

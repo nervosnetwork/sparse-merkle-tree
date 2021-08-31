@@ -18,6 +18,7 @@ blake2b = ["blake2b-rs"]
 [dependencies]
 cfg-if = "0.1"
 blake2b-rs = { version = "0.1", optional = true }
+numext-fixed-hash = "0.1.6"
 
 [dev-dependencies]
 proptest = "0.9"

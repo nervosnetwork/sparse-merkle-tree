@@ -93,7 +93,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         let node = MergeValue::from_h256(value.to_h256());
         // notice when value is zero the leaf is deleted, so we do not need to store it
         if !node.is_zero() {
-            self.store.insert_leaf(key, value)?;
+            self.store.insert_leaf(key.clone(), value)?;
         } else {
             self.store.remove_leaf(&key)?;
         }
@@ -103,7 +103,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         let mut current_node = node;
         for height in 0..=core::u8::MAX {
             let parent_key = current_key.parent_path(height);
-            let parent_branch_key = BranchKey::new(height, parent_key);
+            let parent_branch_key = BranchKey::new(height, parent_key.clone());
             let (left, right) =
                 if let Some(parent_branch) = self.store.get_branch(&parent_branch_key)? {
                     if current_key.is_right(height) {
@@ -131,7 +131,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
                 self.store.remove_branch(&parent_branch_key)?;
             }
             // prepare for next round
-            current_key = parent_key;
+            current_key = parent_key.clone();
             current_node = merge::<H>(height, &parent_key, &left, &right);
         }
 
@@ -160,7 +160,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         // Collect leaf bitmaps
         let mut leaves_bitmap: Vec<H256> = Default::default();
         for current_key in &keys {
-            let mut bitmap = H256::zero();
+            let mut bitmap = H256::empty();
             for height in 0..=core::u8::MAX {
                 let parent_key = current_key.parent_path(height);
                 let parent_branch_key = BranchKey::new(height, parent_key);
@@ -185,7 +185,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         let mut stack_top = 0;
         let mut leaf_index = 0;
         while leaf_index < keys.len() {
-            let leaf_key = keys[leaf_index];
+            let leaf_key = keys[leaf_index].clone();
             let fork_height = if leaf_index + 1 < keys.len() {
                 leaf_key.fork_height(&keys[leaf_index + 1])
             } else {

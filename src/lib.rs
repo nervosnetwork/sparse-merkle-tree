@@ -19,7 +19,7 @@
 //! impl Value for Word {
 //!    fn to_h256(&self) -> H256 {
 //!        if self.0.is_empty() {
-//!            return H256::zero();
+//!            return H256::empty();
 //!        }
 //!        let mut buf = [0u8; 32];
 //!        let mut hasher = new_blake2b();
