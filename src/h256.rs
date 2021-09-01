@@ -40,6 +40,40 @@ pub fn copy_bits(data: &H256, start: u8) -> H256 {
     target
 }
 
-pub fn h256_cmp(v1: &H256, v2: &H256) -> Ordering {
-    v1.0.iter().rev().cmp(v2.0.iter().rev())
+#[derive(Eq, PartialEq, Debug, Default, Hash, Clone)]
+pub(crate) struct H256Ord {
+    pub inner: H256,
+}
+
+impl From<[u8; 32]> for H256Ord {
+    fn from(v: [u8; 32]) -> H256Ord {
+        H256Ord {
+            inner: H256::from(v),
+        }
+    }
+}
+
+impl From<H256> for H256Ord {
+    fn from(v: H256) -> H256Ord {
+        H256Ord { inner: v }
+    }
+}
+
+impl From<&H256> for H256Ord {
+    fn from(v: &H256) -> H256Ord {
+        H256Ord { inner: v.clone() }
+    }
+}
+
+impl PartialOrd for H256Ord {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for H256Ord {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Compare bits from heigher to lower (255..0)
+        self.inner.0.iter().rev().cmp(other.inner.0.iter().rev())
+    }
 }

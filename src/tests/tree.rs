@@ -1,51 +1,12 @@
 use crate::*;
 use crate::{
-    blake2b::Blake2bHasher, default_store::DefaultStore, error::Error, merge::MergeValue,
-    MerkleProof, SparseMerkleTree,
+    blake2b::Blake2bHasher, default_store::DefaultStore, error::Error, h256::H256Ord,
+    merge::MergeValue, MerkleProof, SparseMerkleTree,
 };
-use core::cmp::Ordering;
 use proptest::prelude::*;
 use rand::prelude::{Rng, SliceRandom};
 
 type SMT = SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>;
-
-#[derive(Eq, PartialEq, Debug, Default, Hash, Clone)]
-pub struct H256OrdTest {
-    pub inner: H256,
-}
-
-impl From<[u8; 32]> for H256OrdTest {
-    fn from(v: [u8; 32]) -> H256OrdTest {
-        H256OrdTest {
-            inner: H256::from(v),
-        }
-    }
-}
-
-impl From<H256> for H256OrdTest {
-    fn from(v: H256) -> H256OrdTest {
-        H256OrdTest { inner: v }
-    }
-}
-
-impl From<&H256> for H256OrdTest {
-    fn from(v: &H256) -> H256OrdTest {
-        H256OrdTest { inner: v.clone() }
-    }
-}
-
-impl PartialOrd for H256OrdTest {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for H256OrdTest {
-    fn cmp(&self, other: &Self) -> Ordering {
-        // Compare bits from heigher to lower (255..0)
-        self.inner.0.iter().rev().cmp(other.inner.0.iter().rev())
-    }
-}
 
 #[test]
 fn test_default_root() {
@@ -382,7 +343,7 @@ fn merkle_proof(max_proof: usize) -> impl Strategy<Value = Vec<MergeValue>> {
 proptest! {
     #[test]
     fn test_h256(key: [u8; 32], key2: [u8; 32]) {
-        let mut list1: Vec<H256OrdTest> = vec![H256OrdTest::from(key) , H256OrdTest::from(key2)];
+        let mut list1: Vec<H256Ord> = vec![H256Ord::from(key) , H256Ord::from(key2)];
         let mut list2 = list1.clone();
         // sort H256
         list1.sort_unstable_by_key(|k| k.clone());

@@ -1,29 +1,12 @@
 use crate::{
     error::{Error, Result},
     h256,
+    h256::H256Ord,
     merge::{merge, MergeValue},
     traits::Hasher,
     vec::Vec,
     H256, MAX_STACK_SIZE,
 };
-use core::cmp::Ordering;
-
-#[derive(Eq, PartialEq, Debug, Default, Hash, Clone)]
-struct H256Ord {
-    pub inner: H256,
-}
-
-impl PartialOrd for H256Ord {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for H256Ord {
-    fn cmp(&self, other: &Self) -> Ordering {
-        h256::h256_cmp(&self.inner, &other.inner)
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MerkleProof {

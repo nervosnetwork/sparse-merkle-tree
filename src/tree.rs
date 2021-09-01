@@ -1,6 +1,7 @@
 use crate::{
     error::{Error, Result},
     h256,
+    h256::H256Ord,
     merge::{merge, MergeValue},
     merkle_proof::MerkleProof,
     traits::{Hasher, Store, Value},
@@ -50,23 +51,6 @@ pub struct SparseMerkleTree<H, V, S> {
     store: S,
     root: H256,
     phantom: PhantomData<(H, V)>,
-}
-
-#[derive(Eq, PartialEq, Debug, Default, Hash, Clone)]
-struct H256OrdTree {
-    pub inner: H256,
-}
-
-impl PartialOrd for H256OrdTree {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for H256OrdTree {
-    fn cmp(&self, other: &Self) -> Ordering {
-        h256::h256_cmp(&self.inner, &other.inner)
-    }
 }
 
 impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
@@ -171,7 +155,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         let mut keys_ord = keys
             .iter()
             .take(keys.len())
-            .map(|k| H256OrdTree { inner: k.clone() })
+            .map(|k| H256Ord { inner: k.clone() })
             .collect::<Vec<_>>();
         if keys_ord.is_empty() {
             return Err(Error::EmptyKeys);
