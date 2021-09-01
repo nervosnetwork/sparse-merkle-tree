@@ -6,7 +6,7 @@
 //! use sparse_merkle_tree::{
 //!     blake2b::Blake2bHasher, default_store::DefaultStore,
 //!     error::Error, MerkleProof,
-//!     SparseMerkleTree, traits::Value, h256::SmtH256
+//!     SparseMerkleTree, traits::Value, H256
 //! };
 //! use blake2b_rs::{Blake2b, Blake2bBuilder};
 //!
@@ -17,9 +17,9 @@
 //! #[derive(Default, Clone)]
 //! pub struct Word(String);
 //! impl Value for Word {
-//!    fn to_h256(&self) -> SmtH256 {
+//!    fn to_h256(&self) -> H256 {
 //!        if self.0.is_empty() {
-//!            return SmtH256::empty();
+//!            return H256::empty();
 //!        }
 //!        let mut buf = [0u8; 32];
 //!        let mut hasher = new_blake2b();
@@ -43,7 +43,7 @@
 //!         .split_whitespace()
 //!         .enumerate()
 //!     {
-//!         let key: SmtH256 = {
+//!         let key: H256 = {
 //!             let mut buf = [0u8; 32];
 //!             let mut hasher = new_blake2b();
 //!             hasher.update(&(i as u32).to_le_bytes());
@@ -73,6 +73,7 @@ mod tests;
 pub mod traits;
 pub mod tree;
 
+pub use h256::H256;
 pub use merkle_proof::{CompiledMerkleProof, MerkleProof};
 pub use tree::SparseMerkleTree;
 

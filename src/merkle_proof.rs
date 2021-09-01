@@ -1,18 +1,34 @@
 use crate::{
     error::{Error, Result},
     h256,
-    h256::SmtH256Ord,
-    h256::SmtH256,
     merge::{merge, MergeValue},
     traits::Hasher,
     vec::Vec,
-    MAX_STACK_SIZE,
+    H256, MAX_STACK_SIZE,
 };
+use core::cmp::Ordering;
+
+#[derive(Eq, PartialEq, Debug, Default, Hash, Clone)]
+struct H256Ord {
+    pub inner: H256,
+}
+
+impl PartialOrd for H256Ord {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for H256Ord {
+    fn cmp(&self, other: &Self) -> Ordering {
+        h256::h256_cmp(&self.inner, &other.inner)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MerkleProof {
     // leaf bitmap, bitmap.get_bit(height) is true means there need a non zero sibling in this height
-    leaves_bitmap: Vec<SmtH256>,
+    leaves_bitmap: Vec<H256>,
     // needed sibling node hash
     merkle_path: Vec<MergeValue>,
 }
@@ -21,7 +37,7 @@ impl MerkleProof {
     /// Create MerkleProof
     /// leaves_bitmap: leaf bitmap, bitmap.get_bit(height) is true means there need a non zero sibling in this height
     /// proof: needed sibling node hash
-    pub fn new(leaves_bitmap: Vec<SmtH256>, merkle_path: Vec<MergeValue>) -> Self {
+    pub fn new(leaves_bitmap: Vec<H256>, merkle_path: Vec<MergeValue>) -> Self {
         MerkleProof {
             leaves_bitmap,
             merkle_path,
@@ -29,7 +45,7 @@ impl MerkleProof {
     }
 
     /// Destruct the structure, useful for serialization
-    pub fn take(self) -> (Vec<SmtH256>, Vec<MergeValue>) {
+    pub fn take(self) -> (Vec<H256>, Vec<MergeValue>) {
         let MerkleProof {
             leaves_bitmap,
             merkle_path,
@@ -43,7 +59,7 @@ impl MerkleProof {
     }
 
     /// return the inner leaves_bitmap vector
-    pub fn leaves_bitmap(&self) -> &Vec<SmtH256> {
+    pub fn leaves_bitmap(&self) -> &Vec<H256> {
         &self.leaves_bitmap
     }
 
@@ -52,11 +68,11 @@ impl MerkleProof {
         &self.merkle_path
     }
 
-    pub fn compile(self, leaves: Vec<(SmtH256, SmtH256)>) -> Result<CompiledMerkleProof> {
-        let mut leaves_ord: Vec<(SmtH256Ord, SmtH256)> = leaves
+    pub fn compile(self, leaves: Vec<(H256, H256)>) -> Result<CompiledMerkleProof> {
+        let mut leaves_ord: Vec<(H256Ord, H256)> = leaves
             .iter()
             .take(leaves.len())
-            .map(|(k, v)| (SmtH256Ord { inner: k.clone() }, v.clone()))
+            .map(|(k, v)| (H256Ord { inner: k.clone() }, v.clone()))
             .collect::<Vec<_>>();
         if leaves_ord.is_empty() {
             return Err(Error::EmptyKeys);
@@ -173,10 +189,7 @@ impl MerkleProof {
     ///
     /// return EmptyProof error when proof is empty
     /// return CorruptedProof error when proof is invalid
-    pub fn compute_root<H: Hasher + Default>(
-        self,
-        leaves: Vec<(SmtH256, SmtH256)>,
-    ) -> Result<SmtH256> {
+    pub fn compute_root<H: Hasher + Default>(self, leaves: Vec<(H256, H256)>) -> Result<H256> {
         self.compile(leaves.clone())?.compute_root::<H>(leaves)
     }
 
@@ -184,8 +197,8 @@ impl MerkleProof {
     /// see compute_root_from_proof
     pub fn verify<H: Hasher + Default>(
         self,
-        root: &SmtH256,
-        leaves: Vec<(SmtH256, SmtH256)>,
+        root: &H256,
+        leaves: Vec<(H256, H256)>,
     ) -> Result<bool> {
         let calculated_root = self.compute_root::<H>(leaves)?;
         Ok(&calculated_root == root)
@@ -197,19 +210,16 @@ impl MerkleProof {
 pub struct CompiledMerkleProof(pub Vec<u8>);
 
 impl CompiledMerkleProof {
-    pub fn compute_root<H: Hasher + Default>(
-        &self,
-        leaves: Vec<(SmtH256, SmtH256)>,
-    ) -> Result<SmtH256> {
-        let mut leaves_ord: Vec<(SmtH256Ord, SmtH256)> = leaves
+    pub fn compute_root<H: Hasher + Default>(&self, leaves: Vec<(H256, H256)>) -> Result<H256> {
+        let mut leaves_ord: Vec<(H256Ord, H256)> = leaves
             .iter()
             .take(leaves.len())
-            .map(|(k, v)| (SmtH256Ord { inner: k.clone() }, v.clone()))
+            .map(|(k, v)| (H256Ord { inner: k.clone() }, v.clone()))
             .collect();
         leaves_ord.sort_unstable_by_key(|(k, _v)| k.clone());
         let mut program_index = 0;
         let mut leaf_index = 0;
-        let mut stack: Vec<(u16, SmtH256, MergeValue)> = Vec::new();
+        let mut stack: Vec<(u16, H256, MergeValue)> = Vec::new();
         while program_index < self.0.len() {
             let code = self.0[program_index];
             program_index += 1;
@@ -234,7 +244,7 @@ impl CompiledMerkleProof {
                     let mut data = [0u8; 32];
                     data.copy_from_slice(&self.0[program_index..program_index + 32]);
                     program_index += 32;
-                    let sibling_node = MergeValue::from_h256(SmtH256::from(data));
+                    let sibling_node = MergeValue::from_h256(H256::from(data));
                     let (height_u16, key, value) = stack.pop().unwrap();
                     if height_u16 > 255 {
                         return Err(Error::CorruptedProof);
@@ -262,12 +272,12 @@ impl CompiledMerkleProof {
                     let base_node = {
                         let mut data = [0u8; 32];
                         data.copy_from_slice(&self.0[program_index + 1..program_index + 33]);
-                        SmtH256::from(data)
+                        H256::from(data)
                     };
                     let zero_bits = {
                         let mut data = [0u8; 32];
                         data.copy_from_slice(&self.0[program_index + 33..program_index + 65]);
-                        SmtH256::from(data)
+                        H256::from(data)
                     };
                     program_index += 65;
                     let sibling_node = MergeValue::MergeWithZero {
@@ -365,8 +375,8 @@ impl CompiledMerkleProof {
 
     pub fn verify<H: Hasher + Default>(
         &self,
-        root: &SmtH256,
-        leaves: Vec<(SmtH256, SmtH256)>,
+        root: &H256,
+        leaves: Vec<(H256, H256)>,
     ) -> Result<bool> {
         let calculated_root = self.compute_root::<H>(leaves)?;
         Ok(&calculated_root == root)

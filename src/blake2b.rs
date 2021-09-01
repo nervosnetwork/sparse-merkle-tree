@@ -1,4 +1,4 @@
-use crate::{h256::SmtH256, traits::Hasher};
+use crate::{traits::Hasher, H256};
 use blake2b_rs::{Blake2b, Blake2bBuilder};
 
 const BLAKE2B_KEY: &[u8] = &[];
@@ -18,13 +18,13 @@ impl Default for Blake2bHasher {
 }
 
 impl Hasher for Blake2bHasher {
-    fn write_h256(&mut self, h: &SmtH256) {
+    fn write_h256(&mut self, h: &H256) {
         self.0.update(h.as_bytes());
     }
     fn write_byte(&mut self, b: u8) {
         self.0.update(&[b][..]);
     }
-    fn finish(self) -> SmtH256 {
+    fn finish(self) -> H256 {
         let mut hash = [0u8; 32];
         self.0.finalize(&mut hash);
         hash.into()

@@ -1,13 +1,11 @@
 use crate::{
     error::{Error, Result},
     h256,
-    h256::SmtH256Ord,
-    h256::SmtH256,
     merge::{merge, MergeValue},
     merkle_proof::MerkleProof,
     traits::{Hasher, Store, Value},
     vec::Vec,
-    MAX_STACK_SIZE,
+    H256, MAX_STACK_SIZE,
 };
 use core::cmp::Ordering;
 use core::marker::PhantomData;
@@ -16,11 +14,11 @@ use core::marker::PhantomData;
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct BranchKey {
     pub height: u8,
-    pub node_key: SmtH256,
+    pub node_key: H256,
 }
 
 impl BranchKey {
-    pub fn new(height: u8, node_key: SmtH256) -> BranchKey {
+    pub fn new(height: u8, node_key: H256) -> BranchKey {
         BranchKey { height, node_key }
     }
 }
@@ -50,13 +48,30 @@ pub struct BranchNode {
 #[derive(Default, Debug)]
 pub struct SparseMerkleTree<H, V, S> {
     store: S,
-    root: SmtH256,
+    root: H256,
     phantom: PhantomData<(H, V)>,
+}
+
+#[derive(Eq, PartialEq, Debug, Default, Hash, Clone)]
+struct H256OrdTree {
+    pub inner: H256,
+}
+
+impl PartialOrd for H256OrdTree {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for H256OrdTree {
+    fn cmp(&self, other: &Self) -> Ordering {
+        h256::h256_cmp(&self.inner, &other.inner)
+    }
 }
 
 impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
     /// Build a merkle tree from root and store
-    pub fn new(root: SmtH256, store: S) -> SparseMerkleTree<H, V, S> {
+    pub fn new(root: H256, store: S) -> SparseMerkleTree<H, V, S> {
         SparseMerkleTree {
             root,
             store,
@@ -65,7 +80,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
     }
 
     /// Merkle root
-    pub fn root(&self) -> &SmtH256 {
+    pub fn root(&self) -> &H256 {
         &self.root
     }
 
@@ -91,7 +106,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
 
     /// Update a leaf, return new merkle root
     /// set to zero value to delete a key
-    pub fn update(&mut self, key: SmtH256, value: V) -> Result<&SmtH256> {
+    pub fn update(&mut self, key: H256, value: V) -> Result<&H256> {
         // compute and store new leaf
         let node = MergeValue::from_h256(value.to_h256());
         // notice when value is zero the leaf is deleted, so we do not need to store it
@@ -144,7 +159,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
 
     /// Get value of a leaf
     /// return zero value if leaf not exists
-    pub fn get(&self, key: &SmtH256) -> Result<V> {
+    pub fn get(&self, key: &H256) -> Result<V> {
         if self.is_empty() {
             return Ok(V::zero());
         }
@@ -152,11 +167,11 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
     }
 
     /// Generate merkle proof
-    pub fn merkle_proof(&self, keys: Vec<SmtH256>) -> Result<MerkleProof> {
+    pub fn merkle_proof(&self, keys: Vec<H256>) -> Result<MerkleProof> {
         let mut keys_ord = keys
             .iter()
             .take(keys.len())
-            .map(|k| SmtH256Ord { inner: k.clone() })
+            .map(|k| H256OrdTree { inner: k.clone() })
             .collect::<Vec<_>>();
         if keys_ord.is_empty() {
             return Err(Error::EmptyKeys);
@@ -166,9 +181,9 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         keys_ord.sort_unstable();
 
         // Collect leaf bitmaps
-        let mut leaves_bitmap: Vec<SmtH256> = Default::default();
+        let mut leaves_bitmap: Vec<H256> = Default::default();
         for current_key in &keys_ord {
-            let mut bitmap = SmtH256::empty();
+            let mut bitmap = H256::empty();
             for height in 0..=core::u8::MAX {
                 let parent_key = h256::parent_path(&current_key.inner, height);
                 let parent_branch_key = BranchKey::new(height, parent_key);
