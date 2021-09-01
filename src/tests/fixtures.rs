@@ -1,6 +1,6 @@
 use std::fs;
 
-use crate::{blake2b::Blake2bHasher, default_store::DefaultStore, SparseMerkleTree, H256};
+use crate::{blake2b::Blake2bHasher, default_store::DefaultStore, SparseMerkleTree, SmtH256};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 // use rand::{prelude::SliceRandom, thread_rng, Rng};
@@ -22,9 +22,9 @@ struct Case {
     proofs: Vec<Proof>,
 }
 
-type SMT = SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>;
+type SMT = SparseMerkleTree<Blake2bHasher, SmtH256, DefaultStore<SmtH256>>;
 
-fn new_smt(pairs: Vec<(H256, H256)>) -> SMT {
+fn new_smt(pairs: Vec<(SmtH256, SmtH256)>) -> SMT {
     let mut smt = SMT::default();
     for (key, value) in pairs {
         smt.update(key, value).unwrap();
@@ -33,7 +33,7 @@ fn new_smt(pairs: Vec<(H256, H256)>) -> SMT {
 }
 
 /// Generate random leaves
-// fn leaves(min_leaves: usize, max_leaves: usize) -> Vec<(H256, H256)> {
+// fn leaves(min_leaves: usize, max_leaves: usize) -> Vec<(SmtH256, SmtH256)> {
 //     let mut rng = thread_rng();
 //     let size = rng.gen_range(min_leaves, max_leaves);
 //     let mut pairs: Vec<_> = (0..size)

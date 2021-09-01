@@ -1,11 +1,11 @@
-use crate::{string, H256};
+use crate::{h256::SmtH256, string};
 
 pub type Result<T> = ::core::result::Result<T, Error>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
-    MissingBranch(u8, H256),
-    MissingLeaf(H256),
+    MissingBranch(u8, SmtH256),
+    MissingLeaf(SmtH256),
     CorruptedProof,
     EmptyProof,
     EmptyKeys,

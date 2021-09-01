@@ -1,4 +1,4 @@
-use crate::h256::H256;
+use crate::h256::SmtH256;
 use crate::traits::Hasher;
 
 const MERGE_NORMAL: u8 = 1;
@@ -6,21 +6,21 @@ const MERGE_ZEROS: u8 = 2;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum MergeValue {
-    Value(H256),
+    Value(SmtH256),
     MergeWithZero {
-        base_node: H256,
-        zero_bits: H256,
+        base_node: SmtH256,
+        zero_bits: SmtH256,
         zero_count: u8,
     },
 }
 
 impl MergeValue {
-    pub fn from_h256(v: H256) -> Self {
+    pub fn from_h256(v: SmtH256) -> Self {
         MergeValue::Value(v)
     }
 
     pub fn zero() -> Self {
-        MergeValue::Value(H256::empty())
+        MergeValue::Value(SmtH256::empty())
     }
 
     pub fn is_zero(&self) -> bool {
@@ -30,7 +30,7 @@ impl MergeValue {
         false
     }
 
-    pub fn hash<H: Hasher + Default>(&self) -> H256 {
+    pub fn hash<H: Hasher + Default>(&self) -> SmtH256 {
         match self {
             MergeValue::Value(v) => v.clone(),
             MergeValue::MergeWithZero {
@@ -49,12 +49,12 @@ impl MergeValue {
     }
 }
 
-/// Hash base node into a H256
+/// Hash base node into a SmtH256
 pub fn hash_base_node<H: Hasher + Default>(
     base_height: u8,
-    base_key: &H256,
-    base_value: &H256,
-) -> H256 {
+    base_key: &SmtH256,
+    base_value: &SmtH256,
+) -> SmtH256 {
     let mut hasher = H::default();
     hasher.write_byte(base_height);
     hasher.write_h256(base_key);
@@ -67,7 +67,7 @@ pub fn hash_base_node<H: Hasher + Default>(
 /// if lhs and rhs both are ZERO_HASH return ZERO_HASH, otherwise hash all info.
 pub fn merge<H: Hasher + Default>(
     height: u8,
-    node_key: &H256,
+    node_key: &SmtH256,
     lhs: &MergeValue,
     rhs: &MergeValue,
 ) -> MergeValue {
@@ -91,13 +91,13 @@ pub fn merge<H: Hasher + Default>(
 
 fn merge_with_zero<H: Hasher + Default>(
     height: u8,
-    node_key: &H256,
+    node_key: &SmtH256,
     value: &MergeValue,
     set_bit: bool,
 ) -> MergeValue {
     match value {
         MergeValue::Value(v) => {
-            let mut zero_bits = H256::empty();
+            let mut zero_bits = SmtH256::empty();
             if set_bit {
                 zero_bits.set_bit(height.into(), true);
             }

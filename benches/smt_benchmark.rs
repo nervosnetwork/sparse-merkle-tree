@@ -4,19 +4,19 @@ extern crate criterion;
 use criterion::Criterion;
 use rand::{thread_rng, Rng};
 use sparse_merkle_tree::{
-    blake2b::Blake2bHasher, default_store::DefaultStore, tree::SparseMerkleTree, H256,
+    blake2b::Blake2bHasher, default_store::DefaultStore, h256::SmtH256, tree::SparseMerkleTree,
 };
 const TARGET_LEAVES_COUNT: usize = 20;
 
-type SMT = SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>;
+type SMT = SparseMerkleTree<Blake2bHasher, SmtH256, DefaultStore<SmtH256>>;
 
-fn random_h256(rng: &mut impl Rng) -> H256 {
+fn random_h256(rng: &mut impl Rng) -> SmtH256 {
     let mut buf = [0u8; 32];
     rng.fill(&mut buf);
     buf.into()
 }
 
-fn random_smt(update_count: usize, rng: &mut impl Rng) -> (SMT, Vec<H256>) {
+fn random_smt(update_count: usize, rng: &mut impl Rng) -> (SMT, Vec<SmtH256>) {
     let mut smt = SparseMerkleTree::default();
     let mut keys = Vec::with_capacity(update_count);
     for _ in 0..update_count {
