@@ -4,8 +4,9 @@ extern crate criterion;
 use criterion::Criterion;
 use rand::{thread_rng, Rng};
 use sparse_merkle_tree::{
-    blake2b::Blake2bHasher, default_store::DefaultStore, tree::SparseMerkleTree, H256,
+    blake2b::Blake2bHasher, default_store::DefaultStore, tree::SparseMerkleTree, H256
 };
+use core::cmp::Ordering;
 
 const TARGET_LEAVES_COUNT: usize = 20;
 
@@ -23,7 +24,7 @@ fn random_smt(update_count: usize, rng: &mut impl Rng) -> (SMT, Vec<H256>) {
     for _ in 0..update_count {
         let key = random_h256(rng);
         let value = random_h256(rng);
-        smt.update(key, value).unwrap();
+        smt.update(key.clone(), value.clone()).unwrap();
         keys.push(key);
     }
     (smt, keys)
@@ -71,7 +72,7 @@ fn bench(c: &mut Criterion) {
         let leaves: Vec<_> = keys
             .iter()
             .take(TARGET_LEAVES_COUNT)
-            .map(|k| (*k, smt.get(k).unwrap()))
+            .map(|k| (k.clone(), smt.get(&k).unwrap()))
             .collect();
         let proof = smt
             .merkle_proof(keys.into_iter().take(TARGET_LEAVES_COUNT).collect())

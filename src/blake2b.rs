@@ -19,7 +19,7 @@ impl Default for Blake2bHasher {
 
 impl Hasher for Blake2bHasher {
     fn write_h256(&mut self, h: &H256) {
-        self.0.update(h.as_slice());
+        self.0.update(h.as_bytes());
     }
     fn write_byte(&mut self, b: u8) {
         self.0.update(&[b][..]);

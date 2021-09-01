@@ -1,12 +1,56 @@
 use crate::*;
 use crate::{
     blake2b::Blake2bHasher, default_store::DefaultStore, error::Error, merge::MergeValue,
-    MerkleProof, SparseMerkleTree,
+    MerkleProof, SparseMerkleTree
 };
 use proptest::prelude::*;
 use rand::prelude::{Rng, SliceRandom};
+use core::cmp::Ordering;
 
 type SMT = SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>;
+
+#[derive(Eq, PartialEq, Debug, Default, Hash, Clone)]
+pub struct H256OrdTest {
+    pub inner: H256,
+}
+
+impl H256OrdTest {
+    pub fn empty() -> H256OrdTest {
+        H256OrdTest::from(H256::empty())
+    }
+}
+
+impl From<[u8; 32]> for H256OrdTest {
+    fn from(v: [u8; 32]) -> H256OrdTest {
+        H256OrdTest { inner: H256::from(v)}
+    }
+}
+
+impl From<H256> for H256OrdTest {
+    fn from(v: H256) -> H256OrdTest {
+        H256OrdTest { inner: v }
+    }
+}
+
+impl From<&H256> for H256OrdTest {
+    fn from(v: &H256) -> H256OrdTest {
+        H256OrdTest { inner: v.clone() }
+    }
+}
+
+impl PartialOrd for H256OrdTest {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for H256OrdTest {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Compare bits from heigher to lower (255..0)
+        self.inner.0.iter().rev().cmp(other.inner.0.iter().rev())
+    }
+}
+
 
 #[test]
 fn test_default_root() {
@@ -237,10 +281,10 @@ fn test_construct(key: H256, value: H256) {
     tree.update(key.clone(), value.clone()).expect("update");
 
     let mut sibling_key = key;
-    if sibling_key.get_bit(0) {
-        sibling_key.clear_bit(0);
+    if sibling_key.bit(0).unwrap_or(false) {
+        sibling_key.set_bit(0, false);
     } else {
-        sibling_key.set_bit(0);
+        sibling_key.set_bit(0, true);
     }
     let mut tree2 = SMT::default();
     tree2.update(sibling_key, value).expect("update");
@@ -338,15 +382,15 @@ fn merkle_proof(max_proof: usize) -> impl Strategy<Value = Vec<MergeValue>> {
 proptest! {
     #[test]
     fn test_h256(key: [u8; 32], key2: [u8; 32]) {
-        let mut list1: Vec<H256> = vec![key.into() , key2.into()];
+        let mut list1: Vec<H256OrdTest> = vec![H256OrdTest::from(key) , H256OrdTest::from(key2)];
         let mut list2 = list1.clone();
         // sort H256
         list1.sort_unstable_by_key(|k| k.clone());
         // sort by high bits to lower bits
         list2.sort_unstable_by(|k1, k2| {
             for i in (0u8..=255).rev() {
-                let b1 = if k1.get_bit(i) { 1 } else { 0 };
-                let b2 = if k2.get_bit(i) { 1 } else { 0 };
+                let b1 = if k1.inner.bit(i.into()).unwrap_or(false) { 1 } else { 0 };
+                let b2 = if k2.inner.bit(i.into()).unwrap_or(false) { 1 } else { 0 };
                 let o = b1.cmp(&b2);
                 if o != std::cmp::Ordering::Equal {
                     return o;
@@ -360,12 +404,12 @@ proptest! {
     #[test]
     fn test_h256_copy_bits(start: u8) {
         let one: H256 = [255u8; 32].into();
-        let target = one.copy_bits(start);
+        let target = h256::copy_bits(&one, start);
         for i in start..=core::u8::MAX {
-            assert_eq!(one.get_bit(i), target.get_bit(i));
+            assert_eq!(one.bit(i.into()).unwrap_or(false), target.bit(i.into()).unwrap_or(false));
         }
         for i in 0..start {
-            assert!(!target.get_bit(i));
+            assert!(!target.bit(i.into()).unwrap_or(false));
         }
     }
 
@@ -484,7 +528,7 @@ proptest! {
 
             // check leaves
             for (k, v) in &pairs {
-                assert_eq!(&smt2.get(k).unwrap(), v, "key value must be consisted");
+                assert_eq!(&smt2.get(&k).unwrap(), v, "key value must be consisted");
 
                 let origin_proof = smt.merkle_proof(vec![k.clone()]).unwrap();
                 let proof = smt2.merkle_proof(vec![k.clone()]).unwrap();
@@ -512,7 +556,7 @@ proptest! {
         assert_eq!(root, current_root);
         // check inserted pairs
         for (k, v) in pairs[..len].iter() {
-            let value = smt.get(k).unwrap();
+            let value = smt.get(&k).unwrap();
             assert_eq!(v, &value);
         }
     }
@@ -596,7 +640,8 @@ fn test_v0_2_broken_sample() {
     .into_iter()
     .map(parse_h256)
     .collect::<Vec<_>>();
-    let mut pairs = keys.into_iter().zip(values.into_iter()).collect::<Vec<_>>();
+    let mut pairs =
+        keys.iter().take(keys.len()).map(|k| k.clone()).into_iter().zip(values.into_iter()).collect::<Vec<_>>();
     let smt = new_smt(pairs.clone());
     let base_root = smt.root().clone();
 
@@ -688,9 +733,9 @@ fn test_replay_to_pass_proof() {
     .into();
     let pairs = vec![
         (key1.clone(), existing),
-        (key2, non_existing.clone()),
+        (key2.clone(), non_existing.clone()),
         (key3.clone(), non_existing.clone()),
-        (key4, non_existing.clone()),
+        (key4.clone(), non_existing.clone()),
     ];
     let smt = new_smt(pairs);
     let leaf_a_bl = vec![(key1, H256::empty())];
@@ -735,12 +780,14 @@ fn test_sibling_leaf() {
     }
     let rand_key = gen_rand_h256();
     let mut sibling_key = rand_key.clone();
-    if rand_key.is_right(0) {
-        sibling_key.clear_bit(0);
+    if rand_key.bit(0).unwrap_or(false) {
+        sibling_key.set_bit(0, false);
     } else {
-        sibling_key.set_bit(0);
+        sibling_key.set_bit(0, true);
     }
-    let pairs = vec![(rand_key.clone(), gen_rand_h256()), (sibling_key.clone(), gen_rand_h256())];
+    let pairs = vec![
+        (rand_key.clone(), gen_rand_h256()),
+        (sibling_key.clone(), gen_rand_h256())];
     let keys = vec![rand_key, sibling_key];
     let smt = new_smt(pairs.clone());
     let proof = smt.merkle_proof(keys).expect("gen proof");
@@ -755,7 +802,7 @@ fn test_max_stack_size() {
         // The key path is first go right `256 - height` times then go left `height` times.
         let mut key = H256::empty();
         for h in height..=255 {
-            key.set_bit(h);
+            key.set_bit(h.into(), true);
         }
         key
     }
@@ -768,10 +815,10 @@ fn test_max_stack_size() {
         // A pair of sibling keys in between
         let mut left_key = H256::empty();
         for h in 12..56 {
-            left_key.set_bit(h);
+            left_key.set_bit(h, true);
         }
         let mut right_key = left_key.clone();
-        right_key.set_bit(0);
+        right_key.set_bit(0, true);
         pairs.push((left_key, gen_h256(1)));
         pairs.push((right_key, gen_h256(1)));
     }
