@@ -14,12 +14,6 @@ pub struct H256OrdTest {
     pub inner: H256,
 }
 
-impl H256OrdTest {
-    pub fn empty() -> H256OrdTest {
-        H256OrdTest::from(H256::empty())
-    }
-}
-
 impl From<[u8; 32]> for H256OrdTest {
     fn from(v: [u8; 32]) -> H256OrdTest {
         H256OrdTest { inner: H256::from(v)}

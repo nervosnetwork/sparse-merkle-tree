@@ -6,8 +6,6 @@ use rand::{thread_rng, Rng};
 use sparse_merkle_tree::{
     blake2b::Blake2bHasher, default_store::DefaultStore, tree::SparseMerkleTree, H256
 };
-use core::cmp::Ordering;
-
 const TARGET_LEAVES_COUNT: usize = 20;
 
 type SMT = SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>;
