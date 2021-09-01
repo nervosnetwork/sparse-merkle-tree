@@ -1,5 +1,5 @@
-use numext_fixed_hash;
 use core::cmp::Ordering;
+use numext_fixed_hash;
 
 pub type H256 = numext_fixed_hash::H256;
 
@@ -24,7 +24,7 @@ pub fn parent_path(data: &H256, height: u8) -> H256 {
 
 /// Copy bits and return a new H256
 pub fn copy_bits(data: &H256, start: u8) -> H256 {
-    // It can also be implemented with And, but the performance is not as good as this 
+    // It can also be implemented with And, but the performance is not as good as this
     let mut target = H256::empty();
 
     let start_byte = (start / BYTE_SIZE) as usize;

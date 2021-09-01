@@ -1,11 +1,11 @@
 use crate::*;
 use crate::{
     blake2b::Blake2bHasher, default_store::DefaultStore, error::Error, merge::MergeValue,
-    MerkleProof, SparseMerkleTree
+    MerkleProof, SparseMerkleTree,
 };
+use core::cmp::Ordering;
 use proptest::prelude::*;
 use rand::prelude::{Rng, SliceRandom};
-use core::cmp::Ordering;
 
 type SMT = SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>;
 
@@ -16,7 +16,9 @@ pub struct H256OrdTest {
 
 impl From<[u8; 32]> for H256OrdTest {
     fn from(v: [u8; 32]) -> H256OrdTest {
-        H256OrdTest { inner: H256::from(v)}
+        H256OrdTest {
+            inner: H256::from(v),
+        }
     }
 }
 
@@ -45,7 +47,6 @@ impl Ord for H256OrdTest {
     }
 }
 
-
 #[test]
 fn test_default_root() {
     let mut tree = SMT::default();
@@ -70,12 +71,16 @@ fn test_default_root() {
 fn test_default_tree() {
     let tree = SMT::default();
     assert_eq!(tree.get(&H256::empty()).expect("get"), H256::empty());
-    let proof = tree.merkle_proof(vec![H256::empty()]).expect("merkle proof");
+    let proof = tree
+        .merkle_proof(vec![H256::empty()])
+        .expect("merkle proof");
     let root = proof
         .compute_root::<Blake2bHasher>(vec![(H256::empty(), H256::empty())])
         .expect("root");
     assert_eq!(&root, tree.root());
-    let proof = tree.merkle_proof(vec![H256::empty()]).expect("merkle proof");
+    let proof = tree
+        .merkle_proof(vec![H256::empty()])
+        .expect("merkle proof");
     let root2 = proof
         .compute_root::<Blake2bHasher>(vec![(H256::empty(), [42u8; 32].into())])
         .expect("root");
@@ -261,7 +266,8 @@ fn test_sibling_key_get() {
             0, 0, 0,
         ]);
         let sibling_value = H256::from([2u8; 32]);
-        tree.update(sibling_key.clone(), sibling_value.clone()).expect("update");
+        tree.update(sibling_key.clone(), sibling_value.clone())
+            .expect("update");
         // get sibling key should return corresponding value
         assert_eq!(value, tree.get(&key).unwrap());
         assert_eq!(sibling_value, tree.get(&sibling_key).unwrap());
@@ -634,8 +640,13 @@ fn test_v0_2_broken_sample() {
     .into_iter()
     .map(parse_h256)
     .collect::<Vec<_>>();
-    let mut pairs =
-        keys.iter().take(keys.len()).map(|k| k.clone()).into_iter().zip(values.into_iter()).collect::<Vec<_>>();
+    let mut pairs = keys
+        .iter()
+        .take(keys.len())
+        .map(|k| k.clone())
+        .into_iter()
+        .zip(values.into_iter())
+        .collect::<Vec<_>>();
     let smt = new_smt(pairs.clone());
     let base_root = smt.root().clone();
 
@@ -781,7 +792,8 @@ fn test_sibling_leaf() {
     }
     let pairs = vec![
         (rand_key.clone(), gen_rand_h256()),
-        (sibling_key.clone(), gen_rand_h256())];
+        (sibling_key.clone(), gen_rand_h256()),
+    ];
     let keys = vec![rand_key, sibling_key];
     let smt = new_smt(pairs.clone());
     let proof = smt.merkle_proof(keys).expect("gen proof");

@@ -1,4 +1,12 @@
-use crate::{H256, MAX_STACK_SIZE, error::{Error, Result}, h256, merge::{merge, MergeValue}, merkle_proof::MerkleProof, traits::{Hasher, Store, Value}, vec::Vec};
+use crate::{
+    error::{Error, Result},
+    h256,
+    merge::{merge, MergeValue},
+    merkle_proof::MerkleProof,
+    traits::{Hasher, Store, Value},
+    vec::Vec,
+    H256, MAX_STACK_SIZE,
+};
 use core::cmp::Ordering;
 use core::marker::PhantomData;
 
@@ -160,8 +168,11 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
 
     /// Generate merkle proof
     pub fn merkle_proof(&self, keys: Vec<H256>) -> Result<MerkleProof> {
-        let mut keys_ord =
-            keys.iter().take(keys.len()).map(|k| H256OrdTree{inner:k.clone()}).collect::<Vec<_>>();
+        let mut keys_ord = keys
+            .iter()
+            .take(keys.len())
+            .map(|k| H256OrdTree { inner: k.clone() })
+            .collect::<Vec<_>>();
         if keys_ord.is_empty() {
             return Err(Error::EmptyKeys);
         }
@@ -214,7 +225,10 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
                 // has non-zero sibling
                 if stack_top > 0 && stack_fork_height[stack_top - 1] == height {
                     stack_top -= 1;
-                } else if leaves_bitmap[leaf_index].bit(height.into()).unwrap_or(false) {
+                } else if leaves_bitmap[leaf_index]
+                    .bit(height.into())
+                    .unwrap_or(false)
+                {
                     let parent_branch_key = BranchKey::new(height, parent_key);
                     if let Some(parent_branch) = self.store.get_branch(&parent_branch_key)? {
                         let sibling = if is_right {

@@ -1,11 +1,10 @@
 use crate::{
     error::{Error, Result},
+    h256,
     merge::{merge, MergeValue},
     traits::Hasher,
     vec::Vec,
-    h256,
-    H256,
-    MAX_STACK_SIZE,
+    H256, MAX_STACK_SIZE,
 };
 use core::cmp::Ordering;
 
@@ -70,8 +69,11 @@ impl MerkleProof {
     }
 
     pub fn compile(self, leaves: Vec<(H256, H256)>) -> Result<CompiledMerkleProof> {
-        let mut leaves_ord: Vec<(H256Ord, H256)> =
-            leaves.iter().take(leaves.len()).map(|(k, v)| (H256Ord{inner:k.clone()}, v.clone())).collect::<Vec<_>>();
+        let mut leaves_ord: Vec<(H256Ord, H256)> = leaves
+            .iter()
+            .take(leaves.len())
+            .map(|(k, v)| (H256Ord { inner: k.clone() }, v.clone()))
+            .collect::<Vec<_>>();
         if leaves_ord.is_empty() {
             return Err(Error::EmptyKeys);
         } else if leaves_ord.len() != self.leaves_count() {
@@ -108,7 +110,10 @@ impl MerkleProof {
                     if stack_top > 0 && stack_fork_height[stack_top - 1] == height {
                         stack_top -= 1;
                         (Some(0x48), None)
-                    } else if leaves_bitmap[leaf_index].bit(height.into()).unwrap_or(false) {
+                    } else if leaves_bitmap[leaf_index]
+                        .bit(height.into())
+                        .unwrap_or(false)
+                    {
                         if merkle_path_index >= merkle_path.len() {
                             return Err(Error::CorruptedProof);
                         }
@@ -206,8 +211,11 @@ pub struct CompiledMerkleProof(pub Vec<u8>);
 
 impl CompiledMerkleProof {
     pub fn compute_root<H: Hasher + Default>(&self, leaves: Vec<(H256, H256)>) -> Result<H256> {
-        let mut leaves_ord: Vec<(H256Ord, H256)> =
-            leaves.iter().take(leaves.len()).map(|(k, v)| (H256Ord{inner:k.clone()}, v.clone())).collect();
+        let mut leaves_ord: Vec<(H256Ord, H256)> = leaves
+            .iter()
+            .take(leaves.len())
+            .map(|(k, v)| (H256Ord { inner: k.clone() }, v.clone()))
+            .collect();
         leaves_ord.sort_unstable_by_key(|(k, _v)| k.clone());
         let mut program_index = 0;
         let mut leaf_index = 0;
