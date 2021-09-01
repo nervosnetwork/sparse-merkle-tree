@@ -6,9 +6,10 @@
 //! use sparse_merkle_tree::{
 //!     blake2b::Blake2bHasher, default_store::DefaultStore,
 //!     error::Error, MerkleProof,
-//!     SparseMerkleTree, traits::Value, H256
+//!     SparseMerkleTree, traits::Value
 //! };
 //! use blake2b_rs::{Blake2b, Blake2bBuilder};
+//! use numext_fixed_hash::H256;
 //!
 //! // define SMT
 //! type SMT = SparseMerkleTree<Blake2bHasher, Word, DefaultStore<Word>>;
@@ -73,7 +74,7 @@ mod tests;
 pub mod traits;
 pub mod tree;
 
-pub use h256::H256;
+pub(crate) use h256::H256;
 pub use merkle_proof::{CompiledMerkleProof, MerkleProof};
 pub use tree::SparseMerkleTree;
 

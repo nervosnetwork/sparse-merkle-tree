@@ -1,7 +1,7 @@
 use core::cmp::Ordering;
 use numext_fixed_hash;
 
-pub type H256 = numext_fixed_hash::H256;
+pub(crate) type H256 = numext_fixed_hash::H256;
 
 const BYTE_SIZE: u8 = 8;
 

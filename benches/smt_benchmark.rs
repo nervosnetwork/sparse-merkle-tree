@@ -2,10 +2,14 @@
 extern crate criterion;
 
 use criterion::Criterion;
+use numext_fixed_hash;
 use rand::{thread_rng, Rng};
 use sparse_merkle_tree::{
-    blake2b::Blake2bHasher, default_store::DefaultStore, tree::SparseMerkleTree, H256,
+    blake2b::Blake2bHasher, default_store::DefaultStore, tree::SparseMerkleTree,
 };
+
+// Because the direct 'use numext_fixed_hash::H256' may cause part of the IDE errors. (may be about macro expansion)
+type H256 = numext_fixed_hash::H256;
 const TARGET_LEAVES_COUNT: usize = 20;
 
 type SMT = SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>;
