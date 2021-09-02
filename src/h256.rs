@@ -1,4 +1,5 @@
 use core::cmp::Ordering;
+use core::ops::Deref;
 use numext_fixed_hash;
 
 pub(crate) type H256 = numext_fixed_hash::H256;
@@ -42,7 +43,14 @@ pub fn copy_bits(data: &H256, start: u8) -> H256 {
 
 #[derive(Eq, PartialEq, Debug, Default, Hash, Clone)]
 pub(crate) struct H256Ord {
-    pub inner: H256,
+    inner: H256,
+}
+
+impl Deref for H256Ord {
+    type Target = H256;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
 impl From<[u8; 32]> for H256Ord {

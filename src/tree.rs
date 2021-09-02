@@ -155,7 +155,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         let mut keys_ord = keys
             .iter()
             .take(keys.len())
-            .map(|k| H256Ord { inner: k.clone() })
+            .map(|k| H256Ord::from(k))
             .collect::<Vec<_>>();
         if keys_ord.is_empty() {
             return Err(Error::EmptyKeys);
@@ -169,10 +169,10 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         for current_key in &keys_ord {
             let mut bitmap = H256::empty();
             for height in 0..=core::u8::MAX {
-                let parent_key = h256::parent_path(&current_key.inner, height);
+                let parent_key = h256::parent_path(&current_key, height);
                 let parent_branch_key = BranchKey::new(height, parent_key);
                 if let Some(parent_branch) = self.store.get_branch(&parent_branch_key)? {
-                    let sibling = if current_key.inner.bit(height.into()).unwrap_or(false) {
+                    let sibling = if current_key.bit(height.into()).unwrap_or(false) {
                         parent_branch.left
                     } else {
                         parent_branch.right
@@ -192,9 +192,9 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         let mut stack_top = 0;
         let mut leaf_index = 0;
         while leaf_index < keys_ord.len() {
-            let leaf_key = keys_ord[leaf_index].inner.clone();
+            let leaf_key = keys_ord[leaf_index].clone();
             let fork_height = if leaf_index + 1 < keys_ord.len() {
-                h256::fork_height(&leaf_key, &keys_ord[leaf_index + 1].inner)
+                h256::fork_height(&leaf_key, &keys_ord[leaf_index + 1])
             } else {
                 core::u8::MAX
             };

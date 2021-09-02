@@ -54,7 +54,7 @@ impl MerkleProof {
     pub fn compile(self, leaves: Vec<(H256, H256)>) -> Result<CompiledMerkleProof> {
         let mut leaves_ord: Vec<(H256Ord, H256)> = leaves
             .into_iter()
-            .map(|(k, v)| (H256Ord { inner: k.clone() }, v.clone()))
+            .map(|(k, v)| (H256Ord::from(k), v.clone()))
             .collect::<Vec<_>>();
         if leaves_ord.is_empty() {
             return Err(Error::EmptyKeys);
@@ -77,7 +77,7 @@ impl MerkleProof {
         while leaf_index < leaves_ord.len() {
             let (leaf_key, _value) = leaves_ord[leaf_index].clone();
             let fork_height = if leaf_index + 1 < leaves_ord.len() {
-                h256::fork_height(&leaf_key.inner, &leaves_ord[leaf_index + 1].0.inner)
+                h256::fork_height(&leaf_key, &leaves_ord[leaf_index + 1].0)
             } else {
                 core::u8::MAX
             };
@@ -211,7 +211,7 @@ impl CompiledMerkleProof {
                         return Err(Error::CorruptedStack);
                     }
                     let (k, v) = leaves_ord[leaf_index].clone();
-                    stack.push((0, k.inner, MergeValue::from_h256(v)));
+                    stack.push((0, (*k).clone(), MergeValue::from_h256(v)));
                     leaf_index += 1;
                 }
                 // P : hash stack top item with sibling node in proof
