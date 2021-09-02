@@ -419,8 +419,8 @@ proptest! {
     #[test]
     fn test_smt_multi_leaves_small((pairs, n) in leaves(1, 50)){
         let smt = new_smt(pairs.clone());
-        let proof = smt.merkle_proof(pairs.iter().take(n).map(|(k, _v)| k.clone()).collect()).expect("gen proof");
-        let data: Vec<(H256, H256)> = pairs.into_iter().take(n).collect();
+        let proof = smt.merkle_proof(pairs.iter().map(|(k, _v)| k.clone()).collect()).expect("gen proof");
+        let data: Vec<(H256, H256)> = pairs.into_iter().collect();
         let compiled_proof = proof.clone().compile(data.clone()).expect("compile proof");
         assert!(proof.verify::<Blake2bHasher>(smt.root(), data.clone()).expect("verify proof"));
         assert!(compiled_proof.verify::<Blake2bHasher>(smt.root(), data).expect("verify compiled proof"));
@@ -602,8 +602,7 @@ fn test_v0_2_broken_sample() {
     .map(parse_h256)
     .collect::<Vec<_>>();
     let mut pairs = keys
-        .iter()
-        .take(keys.len())
+        .into_iter()
         .map(|k| k.clone())
         .into_iter()
         .zip(values.into_iter())

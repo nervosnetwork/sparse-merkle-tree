@@ -53,8 +53,7 @@ impl MerkleProof {
 
     pub fn compile(self, leaves: Vec<(H256, H256)>) -> Result<CompiledMerkleProof> {
         let mut leaves_ord: Vec<(H256Ord, H256)> = leaves
-            .iter()
-            .take(leaves.len())
+            .into_iter()
             .map(|(k, v)| (H256Ord { inner: k.clone() }, v.clone()))
             .collect::<Vec<_>>();
         if leaves_ord.is_empty() {
@@ -195,9 +194,8 @@ pub struct CompiledMerkleProof(pub Vec<u8>);
 impl CompiledMerkleProof {
     pub fn compute_root<H: Hasher + Default>(&self, leaves: Vec<(H256, H256)>) -> Result<H256> {
         let mut leaves_ord: Vec<(H256Ord, H256)> = leaves
-            .iter()
-            .take(leaves.len())
-            .map(|(k, v)| (H256Ord { inner: k.clone() }, v.clone()))
+            .into_iter()
+            .map(|(k, v)| (H256Ord::from(k), v))
             .collect();
         leaves_ord.sort_unstable_by_key(|(k, _v)| k.clone());
         let mut program_index = 0;
