@@ -157,7 +157,7 @@ impl Hasher for CkbBlake2bHasher {
 
 pub type CkbSMT = SparseMerkleTree<CkbBlake2bHasher, H256, DefaultStore<H256>>;
 
-pub fn _new_ckb_smt(pairs: Vec<(H256, H256)>) -> CkbSMT {
+pub fn new_ckb_smt(pairs: Vec<(H256, H256)>) -> CkbSMT {
     let mut smt = CkbSMT::default();
     for (key, value) in pairs {
         smt.update(key, value).unwrap();
@@ -229,10 +229,10 @@ fn test_normalize_random() {
     }
 }
 
-fn _run_test_case(case: Case) -> AnyResult<()> {
+fn run_test_case(case: Case) -> AnyResult<()> {
     let Case { leaves, proofs, .. } = case;
 
-    let ckb_smt = _new_ckb_smt(
+    let ckb_smt = new_ckb_smt(
         leaves
             .iter()
             .map(|(k, v)| ((*k).into(), (*v).into()))
