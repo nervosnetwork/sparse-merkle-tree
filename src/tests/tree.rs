@@ -1,7 +1,7 @@
 use crate::*;
 use crate::{
-    blake2b::Blake2bHasher, default_store::DefaultStore, error::Error, h256::H256Ord,
-    merge::MergeValue, MerkleProof, SparseMerkleTree,
+    blake2b::Blake2bHasher, default_store::DefaultStore, error::Error, merge::MergeValue,
+    MerkleProof, SparseMerkleTree,
 };
 use proptest::prelude::*;
 use rand::prelude::{Rng, SliceRandom};
@@ -343,10 +343,11 @@ fn merkle_proof(max_proof: usize) -> impl Strategy<Value = Vec<MergeValue>> {
 proptest! {
     #[test]
     fn test_h256(key: [u8; 32], key2: [u8; 32]) {
-        let mut list1: Vec<H256Ord> = vec![H256Ord::from(key) , H256Ord::from(key2)];
+        let mut list1: Vec<H256> = vec![H256::from(key) , H256::from(key2)];
         let mut list2 = list1.clone();
         // sort H256
         list1.sort_unstable_by_key(|k| k.clone());
+        h256::smt_sort_unstable(&mut list1);
         // sort by high bits to lower bits
         list2.sort_unstable_by(|k1, k2| {
             for i in (0u8..=255).rev() {

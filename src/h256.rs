@@ -1,5 +1,4 @@
-use core::cmp::Ordering;
-use core::ops::Deref;
+use crate::vec::Vec;
 use numext_fixed_hash;
 
 pub(crate) type H256 = numext_fixed_hash::H256;
@@ -41,47 +40,10 @@ pub fn copy_bits(data: &H256, start: u8) -> H256 {
     target
 }
 
-#[derive(Eq, PartialEq, Debug, Default, Hash, Clone)]
-pub(crate) struct H256Ord {
-    inner: H256,
+pub(crate) fn smt_sort_unstable(v: &mut Vec<H256>) {
+    (*v).sort_unstable_by(|k1, k2| k1.0.iter().rev().cmp(k2.0.iter().rev()));
 }
 
-impl Deref for H256Ord {
-    type Target = H256;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl From<[u8; 32]> for H256Ord {
-    fn from(v: [u8; 32]) -> H256Ord {
-        H256Ord {
-            inner: H256::from(v),
-        }
-    }
-}
-
-impl From<H256> for H256Ord {
-    fn from(v: H256) -> H256Ord {
-        H256Ord { inner: v }
-    }
-}
-
-impl From<&H256> for H256Ord {
-    fn from(v: &H256) -> H256Ord {
-        H256Ord { inner: v.clone() }
-    }
-}
-
-impl PartialOrd for H256Ord {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for H256Ord {
-    fn cmp(&self, other: &Self) -> Ordering {
-        // Compare bits from heigher to lower (255..0)
-        self.inner.0.iter().rev().cmp(other.inner.0.iter().rev())
-    }
+pub(crate) fn smt_sort_unstable_kv(v: &mut Vec<(H256, H256)>) {
+    v.sort_unstable_by(|(k1, _v1), (k2, _v2)| k1.0.iter().rev().cmp(k2.0.iter().rev()));
 }

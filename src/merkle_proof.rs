@@ -1,7 +1,6 @@
 use crate::{
     error::{Error, Result},
     h256,
-    h256::H256Ord,
     merge::{merge, MergeValue},
     traits::Hasher,
     vec::Vec,
@@ -52,39 +51,36 @@ impl MerkleProof {
     }
 
     pub fn compile(self, leaves: Vec<(H256, H256)>) -> Result<CompiledMerkleProof> {
-        let mut leaves_ord: Vec<(H256Ord, H256)> = leaves
-            .into_iter()
-            .map(|(k, v)| (H256Ord::from(k), v.clone()))
-            .collect::<Vec<_>>();
-        if leaves_ord.is_empty() {
+        let mut leaves = leaves;
+        if leaves.is_empty() {
             return Err(Error::EmptyKeys);
-        } else if leaves_ord.len() != self.leaves_count() {
+        } else if leaves.len() != self.leaves_count() {
             return Err(Error::IncorrectNumberOfLeaves {
                 expected: self.leaves_count(),
-                actual: leaves_ord.len(),
+                actual: leaves.len(),
             });
         }
         // sort leaves
-        leaves_ord.sort_unstable_by_key(|(k, _v)| k.clone());
+        h256::smt_sort_unstable_kv(&mut leaves);
 
         let (leaves_bitmap, merkle_path) = self.take();
 
-        let mut proof: Vec<u8> = Vec::with_capacity(merkle_path.len() * 33 + leaves_ord.len());
+        let mut proof: Vec<u8> = Vec::with_capacity(merkle_path.len() * 33 + leaves.len());
         let mut stack_fork_height = [0u8; MAX_STACK_SIZE]; // store fork height
         let mut stack_top = 0;
         let mut leaf_index = 0;
         let mut merkle_path_index = 0;
-        while leaf_index < leaves_ord.len() {
-            let (leaf_key, _value) = leaves_ord[leaf_index].clone();
-            let fork_height = if leaf_index + 1 < leaves_ord.len() {
-                h256::fork_height(&leaf_key, &leaves_ord[leaf_index + 1].0)
+        while leaf_index < leaves.len() {
+            let (leaf_key, _value) = leaves[leaf_index].clone();
+            let fork_height = if leaf_index + 1 < leaves.len() {
+                h256::fork_height(&leaf_key, &leaves[leaf_index + 1].0)
             } else {
                 core::u8::MAX
             };
             proof.push(0x4C);
             let mut zero_count = 0u16;
             for height in 0..=fork_height {
-                if height == fork_height && leaf_index + 1 < leaves_ord.len() {
+                if height == fork_height && leaf_index + 1 < leaves.len() {
                     // If it's not final round, we don't need to merge to root (height=255)
                     break;
                 }
@@ -157,7 +153,7 @@ impl MerkleProof {
         if stack_top != 1 {
             return Err(Error::CorruptedProof);
         }
-        if leaf_index != leaves_ord.len() {
+        if leaf_index != leaves.len() {
             return Err(Error::CorruptedProof);
         }
         if merkle_path_index != merkle_path.len() {
@@ -193,11 +189,8 @@ pub struct CompiledMerkleProof(pub Vec<u8>);
 
 impl CompiledMerkleProof {
     pub fn compute_root<H: Hasher + Default>(&self, leaves: Vec<(H256, H256)>) -> Result<H256> {
-        let mut leaves_ord: Vec<(H256Ord, H256)> = leaves
-            .into_iter()
-            .map(|(k, v)| (H256Ord::from(k), v))
-            .collect();
-        leaves_ord.sort_unstable_by_key(|(k, _v)| k.clone());
+        let mut leaves = leaves;
+        h256::smt_sort_unstable_kv(&mut leaves);
         let mut program_index = 0;
         let mut leaf_index = 0;
         let mut stack: Vec<(u16, H256, MergeValue)> = Vec::new();
@@ -207,11 +200,11 @@ impl CompiledMerkleProof {
             match code {
                 // L : push leaf value
                 0x4C => {
-                    if leaf_index >= leaves_ord.len() {
+                    if leaf_index >= leaves.len() {
                         return Err(Error::CorruptedStack);
                     }
-                    let (k, v) = leaves_ord[leaf_index].clone();
-                    stack.push((0, (*k).clone(), MergeValue::from_h256(v)));
+                    let (k, v) = leaves[leaf_index].clone();
+                    stack.push((0, k.clone(), MergeValue::from_h256(v)));
                     leaf_index += 1;
                 }
                 // P : hash stack top item with sibling node in proof
@@ -348,7 +341,7 @@ impl CompiledMerkleProof {
         if stack[0].0 != 256 {
             return Err(Error::CorruptedProof);
         }
-        if leaf_index != leaves_ord.len() {
+        if leaf_index != leaves.len() {
             return Err(Error::CorruptedProof);
         }
         Ok(stack[0].2.hash::<H>())

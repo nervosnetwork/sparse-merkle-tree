@@ -1,7 +1,6 @@
 use crate::{
     error::{Error, Result},
     h256,
-    h256::H256Ord,
     merge::{merge, MergeValue},
     merkle_proof::MerkleProof,
     traits::{Hasher, Store, Value},
@@ -152,21 +151,17 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
 
     /// Generate merkle proof
     pub fn merkle_proof(&self, keys: Vec<H256>) -> Result<MerkleProof> {
-        let mut keys_ord = keys
-            .iter()
-            .take(keys.len())
-            .map(|k| H256Ord::from(k))
-            .collect::<Vec<_>>();
-        if keys_ord.is_empty() {
+        let mut keys = keys;
+        if keys.is_empty() {
             return Err(Error::EmptyKeys);
         }
 
         // sort keys
-        keys_ord.sort_unstable();
+        h256::smt_sort_unstable(&mut keys);
 
         // Collect leaf bitmaps
         let mut leaves_bitmap: Vec<H256> = Default::default();
-        for current_key in &keys_ord {
+        for current_key in &keys {
             let mut bitmap = H256::empty();
             for height in 0..=core::u8::MAX {
                 let parent_key = h256::parent_path(&current_key, height);
@@ -191,15 +186,15 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         let mut stack_fork_height = [0u8; MAX_STACK_SIZE]; // store fork height
         let mut stack_top = 0;
         let mut leaf_index = 0;
-        while leaf_index < keys_ord.len() {
-            let leaf_key = keys_ord[leaf_index].clone();
-            let fork_height = if leaf_index + 1 < keys_ord.len() {
-                h256::fork_height(&leaf_key, &keys_ord[leaf_index + 1])
+        while leaf_index < keys.len() {
+            let leaf_key = keys[leaf_index].clone();
+            let fork_height = if leaf_index + 1 < keys.len() {
+                h256::fork_height(&leaf_key, &keys[leaf_index + 1])
             } else {
                 core::u8::MAX
             };
             for height in 0..=fork_height {
-                if height == fork_height && leaf_index + 1 < keys_ord.len() {
+                if height == fork_height && leaf_index + 1 < keys.len() {
                     // If it's not final round, we don't need to merge to root (height=255)
                     break;
                 }
