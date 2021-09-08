@@ -74,7 +74,7 @@ mod tests;
 pub mod traits;
 pub mod tree;
 
-pub use ckb_smt::{CkbSmt, CkbSmtBuilder};
+pub use ckb_smt::{SMTBuilder, SMT};
 pub use h256::H256;
 pub use merkle_proof::{CompiledMerkleProof, MerkleProof};
 pub use tree::SparseMerkleTree;

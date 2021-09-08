@@ -17,5 +17,5 @@ fn main() {
         .flag("-Wno-nonnull")
         .define("__SHARED_LIBRARY__", None)
         .define("CKB_STDLIB_NO_SYSCALL_IMPL", None)
-        .compile("dl-c-impl");
+        .compile("smt-c-impl");
 }

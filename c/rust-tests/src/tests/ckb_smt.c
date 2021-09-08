@@ -15,14 +15,6 @@ smt_state_t* smt_state_new(uint32_t capacity) {
   return state;
 }
 
-void smt_state_del(smt_state_t* state) {
-  if (!state)
-    return;
-  if (state->pairs)
-    free(state->pairs);
-  free(state);
-}
-
 uint32_t smt_state_len(smt_state_t *state) {
   return state->len;
 }

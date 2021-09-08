@@ -1,108 +1,103 @@
-use crate::collections::linked_list::LinkedList;
 use crate::H256;
-use core::{ffi::c_void, result::Result};
+use core::{ptr, result::Result};
 
-#[link(name = "dl-c-impl", kind = "static")]
+extern crate std;
+use std::{boxed::Box, vec::Vec};
+
+#[repr(C)]
+struct smt_pair_t {
+    key: [u8; 32],
+    value: [u8; 32],
+    order: u32,
+}
+
+#[repr(C)]
+struct smt_state_t {
+    pairs: *mut smt_pair_t,
+    len: u32,
+    capacity: u32,
+}
+
+#[link(name = "smt-c-impl", kind = "static")]
 extern "C" {
-    fn smt_state_new(capacity: u32) -> *mut c_void;
-    fn smt_state_del(state: *mut c_void);
+    fn smt_state_init(state: *mut smt_state_t, buffer: *const smt_pair_t, capacity: u32);
 
-    fn smt_state_insert(state: *mut c_void, key: *const u8, value: *const u8) -> isize;
-    //fn smt_state_fetch(state: *mut c_void, key: *const u8, value: *mut u8) -> isize;
-    fn smt_state_normalize(state: *mut c_void);
+    fn smt_state_insert(state: *mut smt_state_t, key: *const u8, value: *const u8) -> i32;
+    fn smt_state_normalize(state: *mut smt_state_t);
     fn smt_verify(
         hash: *const u8,
-        state: *const c_void,
+        state: *const smt_state_t,
         proof: *const u8,
         proof_length: u32,
-    ) -> isize;
+    ) -> i32;
 }
 
-struct OriginCKBSmt {
-    state: *mut c_void,
+pub struct SMTBuilder {
+    state: Box<smt_state_t>,
+    buffer: Vec<smt_pair_t>,
 }
 
-impl OriginCKBSmt {
-    pub fn new(capacity: u32) -> OriginCKBSmt {
-        unsafe {
-            OriginCKBSmt {
-                state: smt_state_new(capacity),
-            }
-        }
-    }
-
-    pub fn insert(&self, key: *const u8, value: *const u8) -> isize {
-        unsafe { smt_state_insert(self.state, key, value) }
-    }
-
-    pub fn normalize(&self) {
-        unsafe {
-            smt_state_normalize(self.state);
-        }
-    }
-
-    pub fn verify(&self, root: &[u8], proof: &[u8]) -> isize {
-        unsafe {
-            smt_verify(
-                root.as_ptr(),
-                self.state,
-                proof.as_ptr(),
-                proof.len() as u32,
-            )
-        }
-    }
+pub struct SMT {
+    state: Box<smt_state_t>,
+    _buffer: Vec<smt_pair_t>,
 }
 
-impl Drop for OriginCKBSmt {
-    fn drop(&mut self) {
-        unsafe { smt_state_del(self.state) }
-    }
-}
-
-pub struct CkbSmt {
-    origin_smt: OriginCKBSmt,
-}
-
-#[derive(Default)]
-pub struct CkbSmtBuilder {
-    data: LinkedList<(H256, H256)>,
-}
-
-impl CkbSmtBuilder {
-    pub fn new() -> CkbSmtBuilder {
-        CkbSmtBuilder {
-            data: LinkedList::new(),
-        }
-    }
-
-    pub fn insert(&mut self, key: &H256, value: &H256) {
-        self.data.push_back((*key, *value));
-    }
-
-    pub fn build(&self) -> Result<CkbSmt, i32> {
-        let smt = CkbSmt {
-            origin_smt: OriginCKBSmt::new(self.data.len() as u32),
+impl SMTBuilder {
+    pub fn new(capacity: u32) -> SMTBuilder {
+        let mut ref_smt = SMTBuilder {
+            state: Box::new(smt_state_t {
+                pairs: ptr::null_mut(),
+                len: 0,
+                capacity: 0,
+            }),
+            buffer: Vec::with_capacity(capacity as usize),
         };
 
-        for (key, val) in &self.data {
-            let insert_ret = smt
-                .origin_smt
-                .insert(key.as_slice().as_ptr(), val.as_slice().as_ptr());
-            if insert_ret != 0 {
-                return Err(insert_ret as i32);
+        unsafe {
+            smt_state_init(ref_smt.state.as_mut(), ref_smt.buffer.as_ptr(), capacity);
+        }
+        ref_smt
+    }
+
+    pub fn insert(self, key: &H256, value: &H256) -> Result<Self, i32> {
+        let mut ret = self;
+        unsafe {
+            let insert_ref = smt_state_insert(
+                ret.state.as_mut(),
+                key.as_slice().as_ptr(),
+                value.as_slice().as_ptr(),
+            );
+            if 0 != insert_ref {
+                return Err(insert_ref);
             }
         }
+        Ok(ret)
+    }
 
-        smt.origin_smt.normalize();
+    pub fn build(self) -> Result<SMT, i32> {
+        let mut smt = SMT {
+            state: self.state,
+            _buffer: self.buffer,
+        };
+        unsafe {
+            smt_state_normalize(smt.state.as_mut());
+        }
         Ok(smt)
     }
 }
 
-impl CkbSmt {
+impl SMT {
     pub fn verify(&self, root: &H256, proof: &[u8]) -> Result<(), i32> {
-        let verify_ret = self.origin_smt.verify(root.as_slice(), proof);
-        if verify_ret != 0 {
-            return Err(verify_ret as i32);
+        unsafe {
+            let verify_ret = smt_verify(
+                root.as_slice().as_ptr(),
+                self.state.as_ref(),
+                proof.as_ptr(),
+                proof.len() as u32,
+            );
+            if 0 != verify_ret {
+                return Err(verify_ret);
+            }
         }
         Ok(())
     }

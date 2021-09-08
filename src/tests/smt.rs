@@ -22,8 +22,8 @@ fn test_ckb_smt_verify1() {
     let proof = str_to_vec(
         "4c4fff51ff322de8a89fe589987f97220cfcb6820bd798b31a0b56ffea221093d35f909e580b00000000000000000000000000000000000000000000000000000000000000");
 
-    let mut builder = CkbSmtBuilder::new();
-    builder.insert(&key, &val);
+    let builder = SMTBuilder::new(8);
+    let builder = builder.insert(&key, &val).unwrap();
 
     let smt = builder.build().unwrap();
     assert!(smt.verify(&root_hash, &proof).is_ok());
@@ -37,8 +37,8 @@ fn test_ckb_smt_verify2() {
     let proof = str_to_vec(
         "4c4fff51fa8aaa2aece17b92ec3f202a40a09f7286522bae1e5581a2a49195ab6781b1b8090000000000000000000000000000000000000000000000000000000000000000");
 
-    let mut builder = CkbSmtBuilder::new();
-    builder.insert(&key, &val);
+    let builder = SMTBuilder::new(8);
+    let builder = builder.insert(&key, &val).unwrap();
 
     let smt = builder.build().unwrap();
     assert!(smt.verify(&root_hash, &proof).is_ok());
@@ -52,8 +52,8 @@ fn test_ckb_smt_verify3() {
     let proof = str_to_vec(
         "4c4fff51fa8aaa2aece17b92ec3f202a40a09f7286522bae1e5581a2a49195ab6781b1b8090000000000000000000000000000000000000000000000000000000000000000");
 
-    let mut builder = CkbSmtBuilder::new();
-    builder.insert(&key, &val);
+    let builder = SMTBuilder::new(8);
+    let builder = builder.insert(&key, &val).unwrap();
 
     let smt = builder.build().unwrap();
     assert!(smt.verify(&root_hash, &proof).is_ok());
@@ -67,8 +67,8 @@ fn test_ckb_smt_verify_invalid() {
     let proof =
         str_to_vec("4c50fe32845309d34f132cd6f7ac6a7881962401adc35c19a18d4fffeb511b97eabf86");
 
-    let mut builder = CkbSmtBuilder::new();
-    builder.insert(&key, &val);
+    let builder = SMTBuilder::new(8);
+    let builder = builder.insert(&key, &val).unwrap();
 
     let smt = builder.build().unwrap();
     assert!(!smt.verify(&root_hash, &proof).is_ok());
