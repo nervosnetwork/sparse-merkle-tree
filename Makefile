@@ -20,4 +20,4 @@ test-c-impl:
 	cd c/rust-tests && cargo test
 
 test-cxx-build:
-	g++ -c src/c/ckb_smt.c -I c -o smt.o && rm -rf smt.o
+	g++ -c c/rust-tests/src/tests/ckb_smt.c -I c -o smt.o && rm -rf smt.o
