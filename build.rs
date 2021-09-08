@@ -2,15 +2,15 @@ fn main() {
     println!("cargo:rerun-if-changed=c/ckb_smt.h");
 
     cc::Build::new()
-        .file("c/rust-tests/src/tests/ckb_smt.c")
+        .file("src/c/ckb_smt.c")
         .static_flag(true)
         .flag("-O3")
         .flag("-fvisibility=hidden")
         .flag("-fdata-sections")
         .flag("-ffunction-sections")
-        .include("c/rust-tests/src/tests")
+        .include("src/c")
         .include("c/")
-        .include("c/deps/ckb-c-stdlib")
+        .include("../c/deps/ckb-c-stdlib")
         .flag("-Wall")
         .flag("-Werror")
         .flag("-Wno-unused-parameter")
