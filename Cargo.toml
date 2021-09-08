@@ -31,3 +31,6 @@ anyhow = "1.0"
 [[bench]]
 name = "smt_benchmark"
 harness = false
+
+[build-dependencies]
+cc = "1.0"
