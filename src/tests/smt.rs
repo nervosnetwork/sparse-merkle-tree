@@ -1,11 +1,11 @@
 use std::convert::TryInto;
 
 use crate::*;
+use blake2b_rs::{Blake2b, Blake2bBuilder};
+use default_store::DefaultStore;
 use hex::decode;
 use proptest::prelude::*;
-use blake2b_rs::{Blake2b, Blake2bBuilder};
 use traits::Hasher;
-use default_store::DefaultStore;
 
 fn str_to_h256(src: &str) -> H256 {
     let src = decode(src).unwrap();
@@ -136,4 +136,3 @@ proptest! {
         }
     }
 }
-
