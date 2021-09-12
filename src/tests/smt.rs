@@ -2,6 +2,10 @@ use std::convert::TryInto;
 
 use crate::*;
 use hex::decode;
+use proptest::prelude::*;
+use blake2b_rs::{Blake2b, Blake2bBuilder};
+use traits::Hasher;
+use default_store::DefaultStore;
 
 fn str_to_h256(src: &str) -> H256 {
     let src = decode(src).unwrap();
@@ -73,3 +77,63 @@ fn test_ckb_smt_verify_invalid() {
     let smt = builder.build().unwrap();
     assert!(!smt.verify(&root_hash, &proof).is_ok());
 }
+
+pub struct CkbBlake2bHasher(Blake2b);
+
+impl Default for CkbBlake2bHasher {
+    fn default() -> Self {
+        // NOTE: here we not set the `personal` since ckb_smt.c linked blake2b implementation from blake2b-rs
+        let blake2b = Blake2bBuilder::new(32)
+            .personal(b"ckb-default-hash")
+            .build();
+        CkbBlake2bHasher(blake2b)
+    }
+}
+
+impl Hasher for CkbBlake2bHasher {
+    fn write_byte(&mut self, b: u8) {
+        self.0.update(&[b][..]);
+    }
+    fn write_h256(&mut self, h: &H256) {
+        self.0.update(h.as_slice());
+    }
+    fn finish(self) -> H256 {
+        let mut hash = [0u8; 32];
+        self.0.finalize(&mut hash);
+        hash.into()
+    }
+}
+
+pub type CkbSMT = SparseMerkleTree<CkbBlake2bHasher, H256, DefaultStore<H256>>;
+proptest! {
+    #[test]
+    fn test_random_merkle_proof(key: [u8; 32], value: [u8;32]) {
+        let key = H256::from(key);
+        let value = H256::from(value);
+        const EXPECTED_PROOF_SIZE: usize = 16;
+
+        let mut tree = CkbSMT::default();
+        tree.update(key, value).expect("update");
+        if !tree.is_empty() {
+            let proof = tree.merkle_proof(vec![key]).expect("proof");
+            let compiled_proof = proof
+                .clone()
+                .compile(vec![(key, value)])
+                .expect("compile proof");
+            assert!(proof.merkle_path().len() < EXPECTED_PROOF_SIZE);
+            assert!(proof
+                    .verify::<CkbBlake2bHasher>(tree.root(), vec![(key, value)])
+                    .expect("verify"));
+            assert!(compiled_proof
+                    .verify::<CkbBlake2bHasher>(tree.root(), vec![(key, value)])
+                    .expect("compiled verify"));
+
+            let compiled_proof_bin: Vec<u8> = compiled_proof.into();
+            let smt_state = SMTBuilder::new(8);
+            let smt_state = smt_state.insert(&key, &value).unwrap();
+            let smt = smt_state.build().unwrap();
+            smt.verify(tree.root(), &compiled_proof_bin).expect("verify with c");
+        }
+    }
+}
+
