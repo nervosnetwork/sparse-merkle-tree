@@ -33,8 +33,7 @@ extern "C" {
 }
 
 pub struct SMTBuilder {
-    state: Box<smt_state_t>,
-    buffer: Vec<smt_pair_t>,
+    data: Vec<(H256, H256)>,
 }
 
 pub struct SMT {
@@ -43,43 +42,40 @@ pub struct SMT {
 }
 
 impl SMTBuilder {
-    pub fn new(capacity: u32) -> SMTBuilder {
-        let mut ref_smt = SMTBuilder {
+    pub fn new() -> SMTBuilder {
+        SMTBuilder { data: Vec::new() }
+    }
+
+    pub fn insert(self, key: &H256, value: &H256) -> Result<Self, i32> {
+        let mut ret = self;
+        ret.data.push((*key, *value));
+        Ok(ret)
+    }
+
+    pub fn build(self) -> Result<SMT, i32> {
+        let capacity = self.data.len();
+        let mut smt = SMT {
             state: Box::new(smt_state_t {
                 pairs: ptr::null_mut(),
                 len: 0,
                 capacity: 0,
             }),
-            buffer: Vec::with_capacity(capacity as usize),
+            _buffer: Vec::with_capacity(capacity as usize),
         };
-
         unsafe {
-            smt_state_init(ref_smt.state.as_mut(), ref_smt.buffer.as_ptr(), capacity);
-        }
-        ref_smt
-    }
+            smt_state_init(smt.state.as_mut(), smt._buffer.as_ptr(), capacity as u32);
 
-    pub fn insert(self, key: &H256, value: &H256) -> Result<Self, i32> {
-        let mut ret = self;
-        unsafe {
-            let insert_ref = smt_state_insert(
-                ret.state.as_mut(),
-                key.as_slice().as_ptr(),
-                value.as_slice().as_ptr(),
-            );
-            if 0 != insert_ref {
-                return Err(insert_ref);
+            for (key, value) in self.data {
+                let ret = smt_state_insert(
+                    smt.state.as_mut(),
+                    key.as_slice().as_ptr(),
+                    value.as_slice().as_ptr(),
+                );
+                if ret != 0 {
+                    return Err(ret);
+                }
             }
-        }
-        Ok(ret)
-    }
 
-    pub fn build(self) -> Result<SMT, i32> {
-        let mut smt = SMT {
-            state: self.state,
-            _buffer: self.buffer,
-        };
-        unsafe {
             smt_state_normalize(smt.state.as_mut());
         }
         Ok(smt)
