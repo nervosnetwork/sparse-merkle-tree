@@ -1,8 +1,8 @@
 use crate::H256;
 use core::{ptr, result::Result};
 
-extern crate std;
-use std::{boxed::Box, vec::Vec};
+extern crate alloc;
+use alloc::{boxed::Box, vec::Vec};
 
 #[repr(C)]
 struct smt_pair_t {

@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 
 sparse-merkle-tree = { path = "../../" }
-blake2b-rs = "0.1"
+blake2b-rs = "0.2"
 proptest = "0.9"
 criterion = "0.2"
 rand = "0.7"
