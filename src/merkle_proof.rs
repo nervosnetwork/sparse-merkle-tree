@@ -3,7 +3,6 @@ use crate::{
     h256,
     merge::{merge, MergeValue},
     traits::Hasher,
-    vec::Vec,
     H256, MAX_STACK_SIZE,
 };
 

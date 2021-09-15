@@ -81,15 +81,6 @@ pub const EXPECTED_PATH_SIZE: usize = 16;
 // Max stack size can be used when verify compiled proof
 pub(crate) const MAX_STACK_SIZE: usize = 257;
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-        use std::collections;
-        use std::vec;
-        use std::string;
-    } else {
-        extern crate alloc;
-        use alloc::collections;
-        use alloc::vec;
-        use alloc::string;
-    }
-}
+extern crate alloc;
+use alloc::collections;
+use alloc::string;

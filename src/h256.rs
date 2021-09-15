@@ -1,4 +1,3 @@
-use crate::vec::Vec;
 use numext_fixed_hash;
 
 pub(crate) type H256 = numext_fixed_hash::H256;

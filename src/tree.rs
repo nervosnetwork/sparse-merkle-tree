@@ -4,7 +4,6 @@ use crate::{
     merge::{merge, MergeValue},
     merkle_proof::MerkleProof,
     traits::{Hasher, Store, Value},
-    vec::Vec,
     H256, MAX_STACK_SIZE,
 };
 use core::cmp::Ordering;

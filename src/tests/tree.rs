@@ -6,8 +6,6 @@ use crate::{
 use proptest::prelude::*;
 use rand::prelude::{Rng, SliceRandom};
 
-use std::{println, vec::Vec};
-
 type SMT = SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>;
 
 #[test]
