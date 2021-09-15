@@ -1,5 +1,4 @@
 use crate::{string, H256};
-extern crate std;
 
 pub type Result<T> = ::core::result::Result<T, Error>;
 

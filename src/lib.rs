@@ -60,8 +60,6 @@
 //! }
 //! ```
 
-#![cfg_attr(not(feature = "std"), no_std)]
-
 #[cfg(feature = "blake2b")]
 pub mod blake2b;
 pub mod default_store;
