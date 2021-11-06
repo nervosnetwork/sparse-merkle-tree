@@ -288,10 +288,22 @@ fn test_merkle_proof(key: H256, value: H256) {
 }
 
 fn new_smt(pairs: Vec<(H256, H256)>) -> SMT {
+    use std::time::Instant;
     let mut smt = SMT::default();
-    for (key, value) in pairs {
+    let len = pairs.len();
+    let start = Instant::now();
+    for (key, value) in pairs.clone() {
         smt.update(key, value).unwrap();
     }
+    let delta = start.elapsed();
+
+    let mut smt2 = SMT::default();
+    let start2 = Instant::now();
+    smt2.update_all(pairs).unwrap();
+    let delta2 = start2.elapsed();
+    assert_eq!(smt.root(), smt2.root());
+    println!("length={}, delta = {:?}, delta2 = {:?}", len, delta, delta2);
+
     smt
 }
 

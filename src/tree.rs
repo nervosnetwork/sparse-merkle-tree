@@ -8,6 +8,7 @@ use crate::{
 };
 use core::cmp::Ordering;
 use core::marker::PhantomData;
+use std::collections::BTreeMap;
 
 /// The branch key
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -136,6 +137,128 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         }
 
         self.root = current_node.hash::<H>();
+        Ok(&self.root)
+    }
+
+    pub fn update_all(&mut self, leaves: Vec<(H256, V)>) -> Result<&H256> {
+        if leaves.is_empty() {
+            return Ok(&self.root);
+        }
+
+        let leaf_pairs = leaves
+            .into_iter()
+            .map(|(key, value)| {
+                let node = MergeValue::from_h256(value.to_h256());
+                (key, value, node)
+            })
+            .collect::<Vec<_>>();
+
+        let mut delta_tree: BTreeMap<BranchKey, (Option<MergeValue>, Option<MergeValue>)> =
+            BTreeMap::default();
+        for (leaf_key, leaf_value, leaf_node) in leaf_pairs {
+            if !leaf_node.is_zero() {
+                self.store.insert_leaf(leaf_key, leaf_value)?;
+            } else {
+                self.store.remove_leaf(&leaf_key)?;
+            }
+
+            // recompute the tree from bottom to top
+            let mut current_key = leaf_key;
+            for height in 0..=core::u8::MAX {
+                let parent_key = current_key.parent_path(height);
+                let parent_branch_key = BranchKey::new(height, parent_key);
+                let is_right = current_key.is_right(height);
+
+                let (new_left, new_right) =
+                    if let Some((old_left, old_right)) = delta_tree.get(&parent_branch_key) {
+                        if height == 0 {
+                            if is_right {
+                                (old_left.clone(), Some(leaf_node.clone()))
+                            } else {
+                                (Some(leaf_node.clone()), old_right.clone())
+                            }
+                        } else {
+                            match (old_left, old_right, is_right) {
+                                (None, Some(_right), true) => (None, None),
+                                (Some(_left), None, false) => (None, None),
+                                // duplicated key in right side
+                                (Some(_), _, true) => {
+                                    break;
+                                }
+                                // duplicated key in left side
+                                (_, Some(_), false) => {
+                                    break;
+                                }
+                                // All ancestors are processed
+                                (None, None, _) => {
+                                    break;
+                                }
+                            }
+                        }
+                    } else {
+                        let (branch_left, branch_right) = self
+                            .store
+                            .get_branch(&parent_branch_key)?
+                            .map(|parent_branch| (parent_branch.left, parent_branch.right))
+                            .unwrap_or_else(|| (MergeValue::zero(), MergeValue::zero()));
+                        match (height, is_right) {
+                            (0, true) => (Some(branch_left), Some(leaf_node.clone())),
+                            (0, false) => (Some(leaf_node.clone()), Some(branch_right)),
+                            (_, true) => (Some(branch_left), None),
+                            (_, false) => (None, Some(branch_right)),
+                        }
+                    };
+                delta_tree.insert(parent_branch_key, (new_left, new_right));
+                current_key = parent_key;
+            }
+        }
+
+        let mut root_node = MergeValue::zero();
+        let keys = delta_tree.keys().cloned().collect::<Vec<BranchKey>>();
+        for parent_branch_key in keys {
+            let BranchKey { height, node_key } = parent_branch_key;
+            let (left_opt, right_opt) = delta_tree.get(&parent_branch_key).unwrap();
+            match (left_opt, right_opt) {
+                (Some(left), Some(right)) => {
+                    if !left.is_zero() || !right.is_zero() {
+                        // insert or update branch
+                        self.store.insert_branch(
+                            BranchKey { height, node_key },
+                            BranchNode {
+                                left: left.clone(),
+                                right: right.clone(),
+                            },
+                        )?;
+                    } else {
+                        // remove empty branch
+                        self.store.remove_branch(&parent_branch_key)?;
+                    }
+                    // update parent node in delta_tree
+                    let node = merge::<H>(height, &node_key, left, right);
+                    if height < core::u8::MAX {
+                        let parent_height = height + 1;
+                        let parent_parent_key = node_key.parent_path(parent_height);
+                        let is_right = node_key.is_right(parent_height);
+                        let (parent_left_opt, parent_right_opt) = delta_tree
+                            .get_mut(&BranchKey {
+                                height: parent_height,
+                                node_key: parent_parent_key,
+                            })
+                            .unwrap();
+                        if is_right {
+                            *parent_right_opt = Some(node);
+                        } else {
+                            *parent_left_opt = Some(node);
+                        }
+                    } else {
+                        root_node = node;
+                    }
+                }
+                _ => panic!("children nodes not all filled"),
+            }
+        }
+
+        self.root = root_node.hash::<H>();
         Ok(&self.root)
     }
 

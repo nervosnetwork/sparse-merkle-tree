@@ -29,6 +29,9 @@ fn new_smt(pairs: Vec<(H256, H256)>) -> SMT {
     for (key, value) in pairs {
         smt.update(key, value).unwrap();
     }
+    let mut smt2 = SMT::default();
+    smt2.update_all(pairs).unwrap();
+    assert_eq!(smt.root(), smt2.root());
     smt
 }
 
