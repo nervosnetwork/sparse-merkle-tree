@@ -468,6 +468,17 @@ proptest! {
     }
 
     #[test]
+    fn test_smt_update_all((pairs, _n) in leaves(1, 20), (pairs2, _n2) in leaves(1, 10)){
+        let mut smt = new_smt(pairs.clone());
+        for (k, v) in pairs2.clone().into_iter() {
+            smt.update(k, v).expect("update");
+        }
+        let mut smt2 = new_smt(pairs.clone());
+        smt2.update_all(pairs2).expect("update all");
+        assert_eq!(smt.root(), smt2.root());
+    }
+
+    #[test]
     fn test_smt_random_insert_order((pairs, _n) in leaves(5, 50)){
         let smt = new_smt(pairs.clone());
         let root = *smt.root();
