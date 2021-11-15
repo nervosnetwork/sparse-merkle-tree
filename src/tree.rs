@@ -139,6 +139,83 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         Ok(&self.root)
     }
 
+    /// Update multiple leaves at once
+    pub fn update_all(&mut self, mut leaves: Vec<(H256, V)>) -> Result<&H256> {
+        // Dedup(only keep the last of each key) and sort leaves
+        leaves.reverse();
+        leaves.sort_by_key(|(a, _)| a.clone());
+        leaves.dedup_by_key(|(a, _)| a.clone());
+
+        let mut nodes: Vec<(H256, MergeValue)> = Vec::new();
+        for (k, v) in leaves {
+            let value = MergeValue::from_h256(v.to_h256());
+            if !value.is_zero() {
+                self.store.insert_leaf(k, v)?;
+            } else {
+                self.store.remove_leaf(&k)?;
+            }
+            nodes.push((k, value));
+        }
+
+        for height in 0..=core::u8::MAX {
+            let mut next_nodes: Vec<(H256, MergeValue)> = Vec::new();
+            let mut i = 0;
+            while i < nodes.len() {
+                let (current_key, current_merge_value) = &nodes[i];
+                i += 1;
+                let parent_key = current_key.parent_path(height);
+                let parent_branch_key = BranchKey::new(height, parent_key);
+
+                // Test for neighbors
+                let mut right = None;
+                if i < nodes.len() && (!current_key.is_right(height)) {
+                    let (neighbor_key, neighbor_value) = &nodes[i];
+                    let mut right_key = current_key.clone();
+                    right_key.set_bit(height);
+                    if right_key == *neighbor_key {
+                        right = Some(neighbor_value.clone());
+                        i += 1;
+                    }
+                }
+
+                let (left, right) = if let Some(right_merge_value) = right {
+                    (current_merge_value.clone(), right_merge_value)
+                } else {
+                    // In case neighbor is not available, fetch from store
+                    if let Some(parent_branch) = self.store.get_branch(&parent_branch_key)? {
+                        if current_key.is_right(height) {
+                            (parent_branch.left, current_merge_value.clone())
+                        } else {
+                            (current_merge_value.clone(), parent_branch.right)
+                        }
+                    } else if current_key.is_right(height) {
+                        (MergeValue::zero(), current_merge_value.clone())
+                    } else {
+                        (current_merge_value.clone(), MergeValue::zero())
+                    }
+                };
+
+                if !left.is_zero() || !right.is_zero() {
+                    self.store.insert_branch(
+                        parent_branch_key,
+                        BranchNode {
+                            left: left.clone(),
+                            right: right.clone(),
+                        },
+                    )?;
+                } else {
+                    self.store.remove_branch(&parent_branch_key)?;
+                }
+                next_nodes.push((parent_key, merge::<H>(height, &parent_key, &left, &right)));
+            }
+            nodes = next_nodes;
+        }
+
+        assert!(nodes.len() == 1);
+        self.root = nodes[0].1.hash::<H>();
+        Ok(&self.root)
+    }
+
     /// Get value of a leaf
     /// return zero value if leaf not exists
     pub fn get(&self, key: &H256) -> Result<V> {
