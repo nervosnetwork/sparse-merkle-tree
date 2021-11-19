@@ -19,10 +19,10 @@ pub trait Value {
 
 impl Value for H256 {
     fn to_h256(&self) -> H256 {
-        *self
+        self.clone()
     }
     fn zero() -> Self {
-        H256::zero()
+        H256::empty()
     }
 }
 

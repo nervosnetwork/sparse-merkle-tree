@@ -66,5 +66,4 @@ impl core::fmt::Display for Error {
     }
 }
 
-#[cfg(feature = "std")]
 impl std::error::Error for Error {}

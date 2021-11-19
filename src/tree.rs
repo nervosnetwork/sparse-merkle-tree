@@ -1,9 +1,9 @@
 use crate::{
     error::{Error, Result},
+    h256,
     merge::{merge, MergeValue},
     merkle_proof::MerkleProof,
     traits::{Hasher, Store, Value},
-    vec::Vec,
     H256, MAX_STACK_SIZE,
 };
 use core::cmp::Ordering;
@@ -68,7 +68,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
 
     /// Check empty of the tree
     pub fn is_empty(&self) -> bool {
-        self.root.is_zero()
+        self.root.is_empty()
     }
 
     /// Destroy current tree and retake store
@@ -93,7 +93,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         let node = MergeValue::from_h256(value.to_h256());
         // notice when value is zero the leaf is deleted, so we do not need to store it
         if !node.is_zero() {
-            self.store.insert_leaf(key, value)?;
+            self.store.insert_leaf(key.clone(), value)?;
         } else {
             self.store.remove_leaf(&key)?;
         }
@@ -102,16 +102,16 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         let mut current_key = key;
         let mut current_node = node;
         for height in 0..=core::u8::MAX {
-            let parent_key = current_key.parent_path(height);
-            let parent_branch_key = BranchKey::new(height, parent_key);
+            let parent_key = h256::parent_path(&current_key, height);
+            let parent_branch_key = BranchKey::new(height, parent_key.clone());
             let (left, right) =
                 if let Some(parent_branch) = self.store.get_branch(&parent_branch_key)? {
-                    if current_key.is_right(height) {
+                    if current_key.bit(height.into()).unwrap_or(false) {
                         (parent_branch.left, current_node)
                     } else {
                         (current_node, parent_branch.right)
                     }
-                } else if current_key.is_right(height) {
+                } else if current_key.bit(height.into()).unwrap_or(false) {
                     (MergeValue::zero(), current_node)
                 } else {
                     (current_node, MergeValue::zero())
@@ -131,7 +131,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
                 self.store.remove_branch(&parent_branch_key)?;
             }
             // prepare for next round
-            current_key = parent_key;
+            current_key = parent_key.clone();
             current_node = merge::<H>(height, &parent_key, &left, &right);
         }
 
@@ -226,29 +226,30 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
     }
 
     /// Generate merkle proof
-    pub fn merkle_proof(&self, mut keys: Vec<H256>) -> Result<MerkleProof> {
+    pub fn merkle_proof(&self, keys: Vec<H256>) -> Result<MerkleProof> {
+        let mut keys = keys;
         if keys.is_empty() {
             return Err(Error::EmptyKeys);
         }
 
         // sort keys
-        keys.sort_unstable();
+        h256::smt_sort_unstable(&mut keys);
 
         // Collect leaf bitmaps
         let mut leaves_bitmap: Vec<H256> = Default::default();
         for current_key in &keys {
-            let mut bitmap = H256::zero();
+            let mut bitmap = H256::empty();
             for height in 0..=core::u8::MAX {
-                let parent_key = current_key.parent_path(height);
+                let parent_key = h256::parent_path(&current_key, height);
                 let parent_branch_key = BranchKey::new(height, parent_key);
                 if let Some(parent_branch) = self.store.get_branch(&parent_branch_key)? {
-                    let sibling = if current_key.is_right(height) {
+                    let sibling = if current_key.bit(height.into()).unwrap_or(false) {
                         parent_branch.left
                     } else {
                         parent_branch.right
                     };
                     if !sibling.is_zero() {
-                        bitmap.set_bit(height);
+                        bitmap.set_bit(height.into(), true);
                     }
                 } else {
                     // The key is not in the tree (support non-inclusion proof)
@@ -262,9 +263,9 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
         let mut stack_top = 0;
         let mut leaf_index = 0;
         while leaf_index < keys.len() {
-            let leaf_key = keys[leaf_index];
+            let leaf_key = keys[leaf_index].clone();
             let fork_height = if leaf_index + 1 < keys.len() {
-                leaf_key.fork_height(&keys[leaf_index + 1])
+                h256::fork_height(&leaf_key, &keys[leaf_index + 1])
             } else {
                 core::u8::MAX
             };
@@ -273,13 +274,16 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
                     // If it's not final round, we don't need to merge to root (height=255)
                     break;
                 }
-                let parent_key = leaf_key.parent_path(height);
-                let is_right = leaf_key.is_right(height);
+                let parent_key = h256::parent_path(&leaf_key, height);
+                let is_right = leaf_key.bit(height.into()).unwrap_or(false);
 
                 // has non-zero sibling
                 if stack_top > 0 && stack_fork_height[stack_top - 1] == height {
                     stack_top -= 1;
-                } else if leaves_bitmap[leaf_index].get_bit(height) {
+                } else if leaves_bitmap[leaf_index]
+                    .bit(height.into())
+                    .unwrap_or(false)
+                {
                     let parent_branch_key = BranchKey::new(height, parent_key);
                     if let Some(parent_branch) = self.store.get_branch(&parent_branch_key)? {
                         let sibling = if is_right {

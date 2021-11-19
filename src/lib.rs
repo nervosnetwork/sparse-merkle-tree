@@ -6,9 +6,10 @@
 //! use sparse_merkle_tree::{
 //!     blake2b::Blake2bHasher, default_store::DefaultStore,
 //!     error::Error, MerkleProof,
-//!     SparseMerkleTree, traits::Value, H256
+//!     SparseMerkleTree, traits::Value
 //! };
 //! use blake2b_rs::{Blake2b, Blake2bBuilder};
+//! use numext_fixed_hash::H256;
 //!
 //! // define SMT
 //! type SMT = SparseMerkleTree<Blake2bHasher, Word, DefaultStore<Word>>;
@@ -19,7 +20,7 @@
 //! impl Value for Word {
 //!    fn to_h256(&self) -> H256 {
 //!        if self.0.is_empty() {
-//!            return H256::zero();
+//!            return H256::empty();
 //!        }
 //!        let mut buf = [0u8; 32];
 //!        let mut hasher = new_blake2b();
@@ -59,8 +60,6 @@
 //! }
 //! ```
 
-#![cfg_attr(not(feature = "std"), no_std)]
-
 #[cfg(feature = "blake2b")]
 pub mod blake2b;
 pub mod default_store;
@@ -73,7 +72,7 @@ mod tests;
 pub mod traits;
 pub mod tree;
 
-pub use h256::H256;
+pub(crate) use h256::H256;
 pub use merkle_proof::{CompiledMerkleProof, MerkleProof};
 pub use tree::SparseMerkleTree;
 
@@ -82,15 +81,6 @@ pub const EXPECTED_PATH_SIZE: usize = 16;
 // Max stack size can be used when verify compiled proof
 pub(crate) const MAX_STACK_SIZE: usize = 257;
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-        use std::collections;
-        use std::vec;
-        use std::string;
-    } else {
-        extern crate alloc;
-        use alloc::collections;
-        use alloc::vec;
-        use alloc::string;
-    }
-}
+extern crate alloc;
+use alloc::collections;
+use alloc::string;

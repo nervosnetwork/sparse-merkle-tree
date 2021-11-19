@@ -6,9 +6,10 @@ use proptest::prelude::*;
 use rand::prelude::Rng;
 use serde::{Deserialize, Serialize};
 use sparse_merkle_tree::traits::Hasher;
-use sparse_merkle_tree::{default_store::DefaultStore, SparseMerkleTree, H256};
+use sparse_merkle_tree::{default_store::DefaultStore, SparseMerkleTree};
 use std::collections::HashMap;
-use std::fs;
+//use std::fs;
+use numext_fixed_hash::H256;
 
 #[link(name = "dl-c-impl", kind = "static")]
 extern "C" {
@@ -145,7 +146,7 @@ impl Hasher for CkbBlake2bHasher {
         self.0.update(&[b][..]);
     }
     fn write_h256(&mut self, h: &H256) {
-        self.0.update(h.as_slice());
+        self.0.update(h.as_bytes());
     }
     fn finish(self) -> H256 {
         let mut hash = [0u8; 32];
@@ -273,7 +274,7 @@ fn run_test_case(case: Case) -> AnyResult<()> {
 
         assert_eq!(smt_state.len(), leaves.len() as u32);
         smt_state
-            .verify(ckb_smt.root().as_slice(), &ckb_actual_compiled_proof_bin)
+            .verify(ckb_smt.root().as_bytes(), &ckb_actual_compiled_proof_bin)
             .unwrap();
     }
     Ok(())
@@ -300,27 +301,27 @@ proptest! {
         const EXPECTED_PROOF_SIZE: usize = 16;
 
         let mut tree = CkbSMT::default();
-        tree.update(key, value).expect("update");
+        tree.update(key.clone(), value.clone()).expect("update");
         if !tree.is_empty() {
-            let proof = tree.merkle_proof(vec![key]).expect("proof");
+            let proof = tree.merkle_proof(vec![key.clone()]).expect("proof");
             let compiled_proof = proof
                 .clone()
-                .compile(vec![(key, value)])
+                .compile(vec![(key.clone(), value.clone())])
                 .expect("compile proof");
             assert!(proof.merkle_path().len() < EXPECTED_PROOF_SIZE);
             assert!(proof
-                    .verify::<CkbBlake2bHasher>(tree.root(), vec![(key, value)])
+                    .verify::<CkbBlake2bHasher>(tree.root(), vec![(key.clone(), value.clone())])
                     .expect("verify"));
             assert!(compiled_proof
-                    .verify::<CkbBlake2bHasher>(tree.root(), vec![(key, value)])
+                    .verify::<CkbBlake2bHasher>(tree.root(), vec![(key.clone(), value.clone())])
                     .expect("compiled verify"));
 
             let compiled_proof_bin: Vec<u8> = compiled_proof.into();
             let mut smt_state = SmtCImpl::new(8);
-            smt_state.insert(key.as_slice(), value.as_slice()).unwrap();
+            smt_state.insert(key.as_bytes(), value.as_bytes()).unwrap();
             smt_state.normalize();
             smt_state
-                .verify(tree.root().as_slice(), &compiled_proof_bin)
+                .verify(tree.root().as_bytes(), &compiled_proof_bin)
                 .expect("verify with c");
         }
     }

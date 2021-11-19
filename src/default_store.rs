@@ -50,12 +50,5 @@ impl<V: Clone> Store<V> for DefaultStore<V> {
     }
 }
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-        pub type Map<K, V> = collections::HashMap<K, V>;
-        pub type Entry<'a, K, V> = collections::hash_map::Entry<'a, K, V>;
-    } else {
-        pub type Map<K, V> = collections::BTreeMap<K, V>;
-        pub type Entry<'a, K, V> = collections::btree_map::Entry<'a, K, V>;
-    }
-}
+pub type Map<K, V> = collections::BTreeMap<K, V>;
+pub type Entry<'a, K, V> = collections::btree_map::Entry<'a, K, V>;
