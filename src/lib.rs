@@ -61,8 +61,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(feature = "blake2b")]
 pub mod blake2b;
+pub mod ckb_smt;
 pub mod default_store;
 pub mod error;
 pub mod h256;
@@ -73,6 +73,7 @@ mod tests;
 pub mod traits;
 pub mod tree;
 
+pub use ckb_smt::{SMTBuilder, SMT};
 pub use h256::H256;
 pub use merkle_proof::{CompiledMerkleProof, MerkleProof};
 pub use tree::SparseMerkleTree;

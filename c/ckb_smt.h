@@ -432,7 +432,7 @@ void _smt_hash_base_node(uint8_t base_height, const uint8_t *base_key,
                          const uint8_t *base_value,
                          uint8_t out[SMT_VALUE_BYTES]) {
   blake2b_state blake2b_ctx;
-  blake2b_init(&blake2b_ctx, SMT_VALUE_BYTES);
+  ckb_blake2b_init(&blake2b_ctx, SMT_VALUE_BYTES);
 
   blake2b_update(&blake2b_ctx, &base_height, 1);
   blake2b_update(&blake2b_ctx, base_key, SMT_KEY_BYTES);
@@ -443,7 +443,7 @@ void _smt_hash_base_node(uint8_t base_height, const uint8_t *base_key,
 void _smt_merge_value_hash(const _smt_merge_value_t *v, uint8_t *out) {
   if (v->t == _SMT_MERGE_VALUE_MERGE_WITH_ZERO) {
     blake2b_state blake2b_ctx;
-    blake2b_init(&blake2b_ctx, SMT_VALUE_BYTES);
+    ckb_blake2b_init(&blake2b_ctx, SMT_VALUE_BYTES);
 
     blake2b_update(&blake2b_ctx, &_SMT_MERGE_ZEROS, 1);
     blake2b_update(&blake2b_ctx, v->value, SMT_VALUE_BYTES);
@@ -499,7 +499,7 @@ void _smt_merge(uint8_t height, const uint8_t *node_key,
   }
 
   blake2b_state blake2b_ctx;
-  blake2b_init(&blake2b_ctx, SMT_VALUE_BYTES);
+  ckb_blake2b_init(&blake2b_ctx, SMT_VALUE_BYTES);
   uint8_t data[SMT_VALUE_BYTES];
 
   blake2b_update(&blake2b_ctx, &_SMT_MERGE_NORMAL, 1);
