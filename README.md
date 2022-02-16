@@ -15,7 +15,7 @@ Features:
 * Customizable hash function
 * Rust `no_std` support
 
-This article describes algorithm of this data structure [An optimized compacted sparse merkle tree](https://justjjy.com/An-optimized-compact-sparse-merkle-tree)
+This article describes algorithm of this data structure [An optimized compacted sparse merkle tree](SMT.md)
 
 **Notice** this library is not stabled yet. The API and the format of the proof may be changed in the future. Make sure you know what you are doing before using this library.
 
