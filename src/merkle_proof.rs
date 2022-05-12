@@ -49,36 +49,36 @@ impl MerkleProof {
         &self.merkle_path
     }
 
-    pub fn compile(self, mut leaves: Vec<(H256, H256)>) -> Result<CompiledMerkleProof> {
-        if leaves.is_empty() {
+    pub fn compile(self, mut leaves_keys: Vec<H256>) -> Result<CompiledMerkleProof> {
+        if leaves_keys.is_empty() {
             return Err(Error::EmptyKeys);
-        } else if leaves.len() != self.leaves_count() {
+        } else if leaves_keys.len() != self.leaves_count() {
             return Err(Error::IncorrectNumberOfLeaves {
                 expected: self.leaves_count(),
-                actual: leaves.len(),
+                actual: leaves_keys.len(),
             });
         }
-        // sort leaves
-        leaves.sort_unstable_by_key(|(k, _v)| *k);
+        // sort leaves keys
+        leaves_keys.sort_unstable();
 
         let (leaves_bitmap, merkle_path) = self.take();
 
-        let mut proof: Vec<u8> = Vec::with_capacity(merkle_path.len() * 33 + leaves.len());
+        let mut proof: Vec<u8> = Vec::with_capacity(merkle_path.len() * 33 + leaves_keys.len());
         let mut stack_fork_height = [0u8; MAX_STACK_SIZE]; // store fork height
         let mut stack_top = 0;
         let mut leaf_index = 0;
         let mut merkle_path_index = 0;
-        while leaf_index < leaves.len() {
-            let (leaf_key, _value) = leaves[leaf_index];
-            let fork_height = if leaf_index + 1 < leaves.len() {
-                leaf_key.fork_height(&leaves[leaf_index + 1].0)
+        while leaf_index < leaves_keys.len() {
+            let leaf_key = leaves_keys[leaf_index];
+            let fork_height = if leaf_index + 1 < leaves_keys.len() {
+                leaf_key.fork_height(&leaves_keys[leaf_index + 1])
             } else {
                 core::u8::MAX
             };
             proof.push(0x4C);
             let mut zero_count = 0u16;
             for height in 0..=fork_height {
-                if height == fork_height && leaf_index + 1 < leaves.len() {
+                if height == fork_height && leaf_index + 1 < leaves_keys.len() {
                     // If it's not final round, we don't need to merge to root (height=255)
                     break;
                 }
@@ -148,7 +148,7 @@ impl MerkleProof {
         if stack_top != 1 {
             return Err(Error::CorruptedProof);
         }
-        if leaf_index != leaves.len() {
+        if leaf_index != leaves_keys.len() {
             return Err(Error::CorruptedProof);
         }
         if merkle_path_index != merkle_path.len() {
@@ -163,7 +163,8 @@ impl MerkleProof {
     /// return EmptyProof error when proof is empty
     /// return CorruptedProof error when proof is invalid
     pub fn compute_root<H: Hasher + Default>(self, leaves: Vec<(H256, H256)>) -> Result<H256> {
-        self.compile(leaves.clone())?.compute_root::<H>(leaves)
+        self.compile(leaves.iter().map(|(key, _value)| *key).collect())?
+            .compute_root::<H>(leaves)
     }
 
     /// Verify merkle proof

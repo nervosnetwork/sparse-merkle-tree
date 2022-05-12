@@ -118,7 +118,7 @@ proptest! {
             let proof = tree.merkle_proof(vec![key]).expect("proof");
             let compiled_proof = proof
                 .clone()
-                .compile(vec![(key, value)])
+                .compile(vec![key])
                 .expect("compile proof");
             assert!(proof.merkle_path().len() < EXPECTED_PROOF_SIZE);
             assert!(proof
