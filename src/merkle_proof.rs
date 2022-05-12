@@ -99,8 +99,7 @@ impl MerkleProof {
                                 zero_bits,
                                 zero_count,
                             } => {
-                                let mut buffer = Vec::new();
-                                buffer.push(*zero_count);
+                                let mut buffer = vec![*zero_count];
                                 buffer.extend_from_slice(base_node.as_slice());
                                 buffer.extend_from_slice(zero_bits.as_slice());
                                 (Some(0x51), Some(buffer))
@@ -352,8 +351,8 @@ impl CompiledMerkleProof {
     }
 }
 
-impl Into<Vec<u8>> for CompiledMerkleProof {
-    fn into(self) -> Vec<u8> {
-        self.0
+impl From<CompiledMerkleProof> for Vec<u8> {
+    fn from(proof: CompiledMerkleProof) -> Vec<u8> {
+        proof.0
     }
 }

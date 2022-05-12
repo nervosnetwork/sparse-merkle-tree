@@ -143,8 +143,8 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
     pub fn update_all(&mut self, mut leaves: Vec<(H256, V)>) -> Result<&H256> {
         // Dedup(only keep the last of each key) and sort leaves
         leaves.reverse();
-        leaves.sort_by_key(|(a, _)| a.clone());
-        leaves.dedup_by_key(|(a, _)| a.clone());
+        leaves.sort_by_key(|(a, _)| *a);
+        leaves.dedup_by_key(|(a, _)| *a);
 
         let mut nodes: Vec<(H256, MergeValue)> = Vec::new();
         for (k, v) in leaves {
@@ -170,7 +170,7 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
                 let mut right = None;
                 if i < nodes.len() && (!current_key.is_right(height)) {
                     let (neighbor_key, neighbor_value) = &nodes[i];
-                    let mut right_key = current_key.clone();
+                    let mut right_key = *current_key;
                     right_key.set_bit(height);
                     if right_key == *neighbor_key {
                         right = Some(neighbor_value.clone());

@@ -105,8 +105,8 @@ impl From<[u8; 32]> for H256 {
     }
 }
 
-impl Into<[u8; 32]> for H256 {
-    fn into(self: H256) -> [u8; 32] {
-        self.0
+impl From<H256> for [u8; 32] {
+    fn from(h256: H256) -> [u8; 32] {
+        h256.0
     }
 }

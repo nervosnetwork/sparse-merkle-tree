@@ -75,7 +75,7 @@ fn test_ckb_smt_verify_invalid() {
     let builder = builder.insert(&key, &val).unwrap();
 
     let smt = builder.build().unwrap();
-    assert!(!smt.verify(&root_hash, &proof).is_ok());
+    assert!(smt.verify(&root_hash, &proof).is_err());
 }
 
 pub struct CkbBlake2bHasher(Blake2b);

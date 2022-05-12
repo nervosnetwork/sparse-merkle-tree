@@ -252,7 +252,7 @@ fn run_test_case(case: Case) -> AnyResult<()> {
         let ckb_actual_compiled_proof = ckb_actual_proof.clone().compile(
             leaves
                 .iter()
-                .map(|(k, v)| ((*k).into(), (*v).into()))
+                .map(|(k, _v)| (*k).into())
                 .collect(),
         )?;
         let ckb_actual_compiled_proof_bin: Vec<u8> = ckb_actual_compiled_proof.clone().into();
@@ -345,7 +345,7 @@ proptest! {
             let proof = tree.merkle_proof(vec![key]).expect("proof");
             let compiled_proof = proof
                 .clone()
-                .compile(vec![(key, value)])
+                .compile(vec![key])
                 .expect("compile proof");
             assert!(proof.merkle_path().len() < EXPECTED_PROOF_SIZE);
             assert!(proof
