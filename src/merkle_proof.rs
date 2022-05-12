@@ -99,7 +99,7 @@ impl MerkleProof {
                                 zero_bits,
                                 zero_count,
                             } => {
-                                let mut buffer = vec![*zero_count];
+                                let mut buffer = crate::vec![*zero_count];
                                 buffer.extend_from_slice(base_node.as_slice());
                                 buffer.extend_from_slice(zero_bits.as_slice());
                                 (Some(0x51), Some(buffer))
