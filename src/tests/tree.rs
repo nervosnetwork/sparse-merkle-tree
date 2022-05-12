@@ -6,6 +6,7 @@ use crate::{
 use proptest::prelude::*;
 use rand::prelude::{Rng, SliceRandom};
 
+#[allow(clippy::upper_case_acronyms)]
 type SMT = SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>;
 
 #[test]
@@ -85,7 +86,7 @@ fn test_merkle_root() {
         let value: H256 = {
             let mut buf = [0u8; 32];
             let mut hasher = new_blake2b();
-            hasher.update(&word.as_bytes());
+            hasher.update(word.as_bytes());
             hasher.finalize(&mut buf);
             buf.into()
         };
@@ -472,7 +473,7 @@ proptest! {
         for (k, v) in pairs2.clone().into_iter() {
             smt.update(k, v).expect("update");
         }
-        let mut smt2 = new_smt(pairs.clone());
+        let mut smt2 = new_smt(pairs);
         smt2.update_all(pairs2).expect("update all");
         assert_eq!(smt.root(), smt2.root());
     }
@@ -588,8 +589,8 @@ fn test_v0_2_broken_sample() {
         "6d5257204ebe7d88fd91ae87941cb2dd9d8062b64ae5a2bd2d28ec40b9fbf6df",
     ]
     .into_iter()
-    .map(parse_h256)
-    .collect::<Vec<_>>();
+    .map(parse_h256);
+
     let values = vec![
         "000000000000000000000000c8328aabcd9b9e8e64fbc566c4385c3bdeb219d7",
         "000000000000000000000001c8328aabcd9b9e8e64fbc566c4385c3bdeb219d7",
@@ -604,9 +605,9 @@ fn test_v0_2_broken_sample() {
         "0000000000000000000000000000000000000000000000000000000000000000",
     ]
     .into_iter()
-    .map(parse_h256)
-    .collect::<Vec<_>>();
-    let mut pairs = keys.into_iter().zip(values.into_iter()).collect::<Vec<_>>();
+    .map(parse_h256);
+
+    let mut pairs = keys.zip(values).collect::<Vec<_>>();
     let smt = new_smt(pairs.clone());
     let base_root = *smt.root();
 
@@ -777,13 +778,13 @@ fn test_max_stack_size() {
         for h in 12..56 {
             left_key.set_bit(h);
         }
-        let mut right_key = left_key.clone();
+        let mut right_key = left_key;
         right_key.set_bit(0);
         pairs.push((left_key, gen_h256(1)));
         pairs.push((right_key, gen_h256(1)));
     }
 
-    let keys: Vec<_> = pairs.iter().map(|(key, _)| key.clone()).collect();
+    let keys: Vec<_> = pairs.iter().map(|(key, _)| *key).collect();
     let smt = new_smt(pairs.clone());
     let proof = smt.merkle_proof(keys.clone()).expect("gen proof");
     let compiled_proof = proof.compile(keys).expect("compile proof");

@@ -32,6 +32,7 @@ extern "C" {
     ) -> i32;
 }
 
+#[derive(Default)]
 pub struct SMTBuilder {
     data: Vec<(H256, H256)>,
 }
@@ -42,8 +43,8 @@ pub struct SMT {
 }
 
 impl SMTBuilder {
-    pub fn new() -> SMTBuilder {
-        SMTBuilder { data: Vec::new() }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn insert(self, key: &H256, value: &H256) -> Result<Self, i32> {

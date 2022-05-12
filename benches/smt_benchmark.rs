@@ -9,6 +9,7 @@ use sparse_merkle_tree::{
 
 const TARGET_LEAVES_COUNT: usize = 20;
 
+#[allow(clippy::upper_case_acronyms)]
 type SMT = SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>;
 
 fn random_h256(rng: &mut impl Rng) -> H256 {
