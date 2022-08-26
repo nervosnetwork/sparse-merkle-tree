@@ -30,6 +30,17 @@ fn random_smt(update_count: usize, rng: &mut impl Rng) -> (SMT, Vec<H256>) {
     (smt, keys)
 }
 
+fn random_smt_update_all(update_count: usize, rng: &mut impl Rng) {
+    let mut smt = SMT::default();
+    let mut kvs = Vec::with_capacity(update_count);
+    for _ in 0..update_count {
+        let key = random_h256(rng);
+        let value = random_h256(rng);
+        kvs.push((key, value));
+    }
+    smt.update_all(kvs).unwrap();
+}
+
 fn bench(c: &mut Criterion) {
     c.bench_function_over_inputs(
         "SMT update",
@@ -37,6 +48,17 @@ fn bench(c: &mut Criterion) {
             b.iter(|| {
                 let mut rng = thread_rng();
                 random_smt(size, &mut rng)
+            });
+        },
+        &[100, 10_000],
+    );
+
+    c.bench_function_over_inputs(
+        "SMT update_all",
+        |b, &&size| {
+            b.iter(|| {
+                let mut rng = thread_rng();
+                random_smt_update_all(size, &mut rng)
             });
         },
         &[100, 10_000],
