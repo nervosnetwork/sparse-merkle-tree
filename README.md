@@ -26,9 +26,9 @@ A sparse merkle tree is a perfectly balanced tree contains `2 ^ N` leaves:
 ``` txt
 # N = 256 sparse merkle tree
 height:
-255                0
+                   0
                 /     \
-254            0        1
+255            0        1
 
 .............................
 
