@@ -179,19 +179,19 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
             }
 
             let (left, right) = if let Some(right_merge_value) = right {
-                (current_merge_value.clone(), right_merge_value)
+                (current_merge_value, right_merge_value)
             } else {
                 // In case neighbor is not available, fetch from store
                 if let Some(parent_branch) = self.store.get_branch(&parent_branch_key)? {
                     if current_key.is_right(height) {
-                        (parent_branch.left, current_merge_value.clone())
+                        (parent_branch.left, current_merge_value)
                     } else {
-                        (current_merge_value.clone(), parent_branch.right)
+                        (current_merge_value, parent_branch.right)
                     }
                 } else if current_key.is_right(height) {
-                    (MergeValue::zero(), current_merge_value.clone())
+                    (MergeValue::zero(), current_merge_value)
                 } else {
-                    (current_merge_value.clone(), MergeValue::zero())
+                    (current_merge_value, MergeValue::zero())
                 }
             };
 
