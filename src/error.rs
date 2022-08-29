@@ -15,6 +15,7 @@ pub enum Error {
     NonSiblings,
     InvalidCode(u8),
     NonMergableRange,
+    InvalidSubLeaf,
 }
 
 impl core::fmt::Display for Error {
@@ -60,6 +61,9 @@ impl core::fmt::Display for Error {
             }
             Error::NonMergableRange => {
                 write!(f, "Ranges can not be merged")?;
+            }
+            Error::InvalidSubLeaf => {
+                write!(f, "The leaf is not a sub leaf of current compiled proof")?;
             }
         }
         Ok(())

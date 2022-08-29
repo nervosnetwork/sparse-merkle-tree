@@ -182,8 +182,41 @@ impl MerkleProof {
 #[derive(Debug, Clone)]
 pub struct CompiledMerkleProof(pub Vec<u8>);
 
+// A op code context passing to the callback function
+enum OpCodeContext<'a> {
+    L {
+        key: &'a H256,
+    },
+    P {
+        key: &'a H256,
+        height: u8,
+        program_index: usize,
+    },
+    Q {
+        key: &'a H256,
+        height: u8,
+        program_index: usize,
+    },
+    H {
+        parent_key: &'a H256,
+        key_a: &'a H256,
+        height: u8,
+        value_a: &'a MergeValue,
+        value_b: &'a MergeValue,
+    },
+    O {
+        key: &'a H256,
+        height: u8,
+        n: u8,
+    },
+}
+
 impl CompiledMerkleProof {
-    pub fn compute_root<H: Hasher + Default>(&self, mut leaves: Vec<(H256, H256)>) -> Result<H256> {
+    fn compute_root_inner<H: Hasher + Default, F: FnMut(OpCodeContext)>(
+        &self,
+        mut leaves: Vec<(H256, H256)>,
+        mut callback: F,
+    ) -> Result<H256> {
         leaves.sort_unstable_by_key(|(k, _v)| *k);
         let mut program_index = 0;
         let mut leaf_index = 0;
@@ -198,6 +231,7 @@ impl CompiledMerkleProof {
                         return Err(Error::CorruptedStack);
                     }
                     let (k, v) = leaves[leaf_index];
+                    callback(OpCodeContext::L { key: &k });
                     stack.push((0, k, MergeValue::from_h256(v)));
                     leaf_index += 1;
                 }
@@ -219,6 +253,11 @@ impl CompiledMerkleProof {
                     }
                     let height = height_u16 as u8;
                     let parent_key = key.parent_path(height);
+                    callback(OpCodeContext::P {
+                        key: &key,
+                        height,
+                        program_index,
+                    });
                     let parent = if key.get_bit(height) {
                         merge::<H>(height, &parent_key, &sibling_node, &value)
                     } else {
@@ -259,6 +298,11 @@ impl CompiledMerkleProof {
                     }
                     let height = height_u16 as u8;
                     let parent_key = key.parent_path(height);
+                    callback(OpCodeContext::Q {
+                        key: &key,
+                        height,
+                        program_index,
+                    });
                     let parent = if key.get_bit(height) {
                         merge::<H>(height, &parent_key, &sibling_node, &value)
                     } else {
@@ -286,6 +330,13 @@ impl CompiledMerkleProof {
                     if parent_key_a != parent_key_b {
                         return Err(Error::CorruptedProof);
                     }
+                    callback(OpCodeContext::H {
+                        parent_key: &parent_key_a,
+                        key_a: &key_a,
+                        height,
+                        value_a: &value_a,
+                        value_b: &value_b,
+                    });
                     let parent = if key_a.get_bit(height) {
                         merge::<H>(height, &parent_key_a, &value_b, &value_a)
                     } else {
@@ -308,6 +359,11 @@ impl CompiledMerkleProof {
                     if base_height > 255 {
                         return Err(Error::CorruptedProof);
                     }
+                    callback(OpCodeContext::O {
+                        key: &key,
+                        height: base_height as u8,
+                        n,
+                    });
                     let mut parent_key = key;
                     let mut height_u16 = base_height;
                     for idx in 0..zero_count {
@@ -339,6 +395,97 @@ impl CompiledMerkleProof {
             return Err(Error::CorruptedProof);
         }
         Ok(stack[0].2.hash::<H>())
+    }
+
+    /// Extract compiled proof for certain leaf from current compiled proof
+    pub fn extract_one_proof<H: Hasher + Default>(
+        &self,
+        leaves: Vec<(H256, H256)>,
+        leaf_key: H256,
+    ) -> Result<CompiledMerkleProof> {
+        if leaves.iter().all(|(k, _)| k != &leaf_key) {
+            return Err(Error::InvalidSubLeaf);
+        }
+
+        let mut one_leaf_proof = Vec::default();
+        let mut callback = |ctx: OpCodeContext| match ctx {
+            OpCodeContext::L { key } => {
+                if key == &leaf_key {
+                    one_leaf_proof.push(0x4C);
+                }
+            }
+            OpCodeContext::P {
+                key,
+                height,
+                program_index,
+            } => {
+                if (height == 0 && key == &leaf_key)
+                    || (height > 0 && key == &leaf_key.parent_path(height - 1))
+                {
+                    one_leaf_proof.push(0x50);
+                    one_leaf_proof.extend(&self.0[program_index - 32..program_index]);
+                }
+            }
+            OpCodeContext::Q {
+                key,
+                height,
+                program_index,
+            } => {
+                if (height == 0 && key == &leaf_key)
+                    || (height > 0 && key == &leaf_key.parent_path(height - 1))
+                {
+                    one_leaf_proof.push(0x51);
+                    one_leaf_proof.extend(&self.0[program_index - 65..program_index]);
+                }
+            }
+            OpCodeContext::H {
+                parent_key,
+                key_a,
+                height,
+                value_a,
+                value_b,
+            } => {
+                if parent_key == &leaf_key.parent_path(height) {
+                    let sibling_value = if (height == 0 && key_a == &leaf_key)
+                        || (height > 0 && key_a == &leaf_key.parent_path(height - 1))
+                    {
+                        &value_b
+                    } else {
+                        &value_a
+                    };
+                    match sibling_value {
+                        MergeValue::Value(hash) => {
+                            one_leaf_proof.push(0x50);
+                            one_leaf_proof.extend(hash.as_slice());
+                        }
+                        MergeValue::MergeWithZero {
+                            base_node,
+                            zero_bits,
+                            zero_count,
+                        } => {
+                            one_leaf_proof.push(0x51);
+                            one_leaf_proof.push(*zero_count);
+                            one_leaf_proof.extend(base_node.as_slice());
+                            one_leaf_proof.extend(zero_bits.as_slice());
+                        }
+                    };
+                }
+            }
+            OpCodeContext::O { key, height, n } => {
+                if (height == 0 && key == &leaf_key)
+                    || (height > 0 && key == &leaf_key.parent_path(height - 1))
+                {
+                    one_leaf_proof.push(0x4F);
+                    one_leaf_proof.push(n);
+                }
+            }
+        };
+        self.compute_root_inner::<H, _>(leaves, &mut callback)?;
+        Ok(CompiledMerkleProof(one_leaf_proof))
+    }
+
+    pub fn compute_root<H: Hasher + Default>(&self, leaves: Vec<(H256, H256)>) -> Result<H256> {
+        self.compute_root_inner::<H, _>(leaves, |_| {})
     }
 
     pub fn verify<H: Hasher + Default>(
