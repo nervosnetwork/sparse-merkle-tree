@@ -129,7 +129,7 @@ proptest! {
                     .expect("compiled verify"));
 
             let single_compiled_proof = compiled_proof
-                .extract_one_proof::<CkbBlake2bHasher>(vec![(key, value)], key)
+                .extract_proof::<CkbBlake2bHasher>(vec![(key, value, true)])
                 .expect("compiled one proof");
             assert_eq!(compiled_proof.0, single_compiled_proof.0);
             assert!(single_compiled_proof

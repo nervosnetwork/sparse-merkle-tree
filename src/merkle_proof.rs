@@ -198,8 +198,8 @@ enum OpCodeContext<'a> {
         program_index: usize,
     },
     H {
-        parent_key: &'a H256,
         key_a: &'a H256,
+        key_b: &'a H256,
         height: u8,
         value_a: &'a MergeValue,
         value_b: &'a MergeValue,
@@ -331,8 +331,8 @@ impl CompiledMerkleProof {
                         return Err(Error::CorruptedProof);
                     }
                     callback(OpCodeContext::H {
-                        parent_key: &parent_key_a,
                         key_a: &key_a,
+                        key_b: &key_b,
                         height,
                         value_a: &value_a,
                         value_b: &value_b,
@@ -397,21 +397,38 @@ impl CompiledMerkleProof {
         Ok(stack[0].2.hash::<H>())
     }
 
-    /// Extract compiled proof for certain leaf from current compiled proof
-    pub fn extract_one_proof<H: Hasher + Default>(
+    /// Extract compiled proof for certain leaves from current compiled proof.
+    ///
+    /// The argument must include all leaves. The 3rd item of every tuple
+    /// indicate if the sub key is selected.
+    pub fn extract_proof<H: Hasher + Default>(
         &self,
-        leaves: Vec<(H256, H256)>,
-        leaf_key: H256,
+        all_leaves: Vec<(H256, H256, bool)>,
     ) -> Result<CompiledMerkleProof> {
-        if leaves.iter().all(|(k, _)| k != &leaf_key) {
-            return Err(Error::InvalidSubLeaf);
+        let mut leaves = Vec::with_capacity(all_leaves.len());
+        let mut sub_keys = Vec::new();
+        for (key, value, included) in all_leaves {
+            leaves.push((key, value));
+            if included {
+                sub_keys.push(key);
+            }
         }
 
-        let mut one_leaf_proof = Vec::default();
+        fn match_any_sub_key(key: &H256, height: u8, sub_keys: &[H256]) -> bool {
+            sub_keys.iter().any(|sub_key| {
+                if height == 0 {
+                    key == sub_key
+                } else {
+                    key == &sub_key.parent_path(height - 1)
+                }
+            })
+        }
+
+        let mut sub_proof = Vec::default();
         let mut callback = |ctx: OpCodeContext| match ctx {
             OpCodeContext::L { key } => {
-                if key == &leaf_key {
-                    one_leaf_proof.push(0x4C);
+                if sub_keys.contains(key) {
+                    sub_proof.push(0x4C);
                 }
             }
             OpCodeContext::P {
@@ -419,11 +436,9 @@ impl CompiledMerkleProof {
                 height,
                 program_index,
             } => {
-                if (height == 0 && key == &leaf_key)
-                    || (height > 0 && key == &leaf_key.parent_path(height - 1))
-                {
-                    one_leaf_proof.push(0x50);
-                    one_leaf_proof.extend(&self.0[program_index - 32..program_index]);
+                if match_any_sub_key(key, height, &sub_keys) {
+                    sub_proof.push(0x50);
+                    sub_proof.extend(&self.0[program_index - 32..program_index]);
                 }
             }
             OpCodeContext::Q {
@@ -431,57 +446,51 @@ impl CompiledMerkleProof {
                 height,
                 program_index,
             } => {
-                if (height == 0 && key == &leaf_key)
-                    || (height > 0 && key == &leaf_key.parent_path(height - 1))
-                {
-                    one_leaf_proof.push(0x51);
-                    one_leaf_proof.extend(&self.0[program_index - 65..program_index]);
+                if match_any_sub_key(key, height, &sub_keys) {
+                    sub_proof.push(0x51);
+                    sub_proof.extend(&self.0[program_index - 65..program_index]);
                 }
             }
             OpCodeContext::H {
-                parent_key,
                 key_a,
+                key_b,
                 height,
                 value_a,
                 value_b,
             } => {
-                if parent_key == &leaf_key.parent_path(height) {
-                    let sibling_value = if (height == 0 && key_a == &leaf_key)
-                        || (height > 0 && key_a == &leaf_key.parent_path(height - 1))
-                    {
-                        &value_b
-                    } else {
-                        &value_a
-                    };
+                let key_a_included = match_any_sub_key(key_a, height, &sub_keys);
+                let key_b_included = match_any_sub_key(key_b, height, &sub_keys);
+                if key_a_included && key_b_included {
+                    sub_proof.push(0x48);
+                } else if key_a_included || key_b_included {
+                    let sibling_value = if key_a_included { &value_b } else { &value_a };
                     match sibling_value {
                         MergeValue::Value(hash) => {
-                            one_leaf_proof.push(0x50);
-                            one_leaf_proof.extend(hash.as_slice());
+                            sub_proof.push(0x50);
+                            sub_proof.extend(hash.as_slice());
                         }
                         MergeValue::MergeWithZero {
                             base_node,
                             zero_bits,
                             zero_count,
                         } => {
-                            one_leaf_proof.push(0x51);
-                            one_leaf_proof.push(*zero_count);
-                            one_leaf_proof.extend(base_node.as_slice());
-                            one_leaf_proof.extend(zero_bits.as_slice());
+                            sub_proof.push(0x51);
+                            sub_proof.push(*zero_count);
+                            sub_proof.extend(base_node.as_slice());
+                            sub_proof.extend(zero_bits.as_slice());
                         }
                     };
                 }
             }
             OpCodeContext::O { key, height, n } => {
-                if (height == 0 && key == &leaf_key)
-                    || (height > 0 && key == &leaf_key.parent_path(height - 1))
-                {
-                    one_leaf_proof.push(0x4F);
-                    one_leaf_proof.push(n);
+                if match_any_sub_key(key, height, &sub_keys) {
+                    sub_proof.push(0x4F);
+                    sub_proof.push(n);
                 }
             }
         };
         self.compute_root_inner::<H, _>(leaves, &mut callback)?;
-        Ok(CompiledMerkleProof(one_leaf_proof))
+        Ok(CompiledMerkleProof(sub_proof))
     }
 
     pub fn compute_root<H: Hasher + Default>(&self, leaves: Vec<(H256, H256)>) -> Result<H256> {
