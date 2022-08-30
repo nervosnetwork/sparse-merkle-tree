@@ -128,6 +128,14 @@ proptest! {
                     .verify::<CkbBlake2bHasher>(tree.root(), vec![(key, value)])
                     .expect("compiled verify"));
 
+            let single_compiled_proof = compiled_proof
+                .extract_proof::<CkbBlake2bHasher>(vec![(key, value, true)])
+                .expect("compiled one proof");
+            assert_eq!(compiled_proof.0, single_compiled_proof.0);
+            assert!(single_compiled_proof
+                    .verify::<CkbBlake2bHasher>(tree.root(), vec![(key, value)])
+                    .expect("verify compiled one proof"));
+
             let compiled_proof_bin: Vec<u8> = compiled_proof.into();
             let smt_state = SMTBuilder::new();
             let smt_state = smt_state.insert(&key, &value).unwrap();
