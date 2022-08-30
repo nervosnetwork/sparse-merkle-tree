@@ -212,7 +212,7 @@ enum OpCodeContext<'a> {
 }
 
 impl CompiledMerkleProof {
-    fn compute_root_inner<H: Hasher + Default, F: FnMut(OpCodeContext)>(
+    fn compute_root_inner<H: Hasher + Default, F: FnMut(OpCodeContext) -> Result<()>>(
         &self,
         mut leaves: Vec<(H256, H256)>,
         mut callback: F,
@@ -231,7 +231,7 @@ impl CompiledMerkleProof {
                         return Err(Error::CorruptedStack);
                     }
                     let (k, v) = leaves[leaf_index];
-                    callback(OpCodeContext::L { key: &k });
+                    callback(OpCodeContext::L { key: &k })?;
                     stack.push((0, k, MergeValue::from_h256(v)));
                     leaf_index += 1;
                 }
@@ -257,7 +257,7 @@ impl CompiledMerkleProof {
                         key: &key,
                         height,
                         program_index,
-                    });
+                    })?;
                     let parent = if key.get_bit(height) {
                         merge::<H>(height, &parent_key, &sibling_node, &value)
                     } else {
@@ -302,7 +302,7 @@ impl CompiledMerkleProof {
                         key: &key,
                         height,
                         program_index,
-                    });
+                    })?;
                     let parent = if key.get_bit(height) {
                         merge::<H>(height, &parent_key, &sibling_node, &value)
                     } else {
@@ -336,7 +336,7 @@ impl CompiledMerkleProof {
                         height,
                         value_a: &value_a,
                         value_b: &value_b,
-                    });
+                    })?;
                     let parent = if key_a.get_bit(height) {
                         merge::<H>(height, &parent_key_a, &value_b, &value_a)
                     } else {
@@ -363,7 +363,7 @@ impl CompiledMerkleProof {
                         key: &key,
                         height: base_height as u8,
                         n,
-                    });
+                    })?;
                     let mut parent_key = key;
                     let mut height_u16 = base_height;
                     for idx in 0..zero_count {
@@ -397,7 +397,7 @@ impl CompiledMerkleProof {
         Ok(stack[0].2.hash::<H>())
     }
 
-    /// Extract compiled proof for certain leaves from current compiled proof.
+    /// Extract sub compiled proof for certain sub leaves from current compiled proof.
     ///
     /// The argument must include all leaves. The 3rd item of every tuple
     /// indicate if the sub key is selected.
@@ -425,76 +425,109 @@ impl CompiledMerkleProof {
         }
 
         let mut sub_proof = Vec::default();
-        let mut callback = |ctx: OpCodeContext| match ctx {
-            OpCodeContext::L { key } => {
-                if sub_keys.contains(key) {
-                    sub_proof.push(0x4C);
+        let mut is_last_merge_zero = false;
+        let mut callback = |ctx: OpCodeContext| {
+            match ctx {
+                OpCodeContext::L { key } => {
+                    if sub_keys.contains(key) {
+                        sub_proof.push(0x4C);
+                        is_last_merge_zero = false;
+                    }
                 }
-            }
-            OpCodeContext::P {
-                key,
-                height,
-                program_index,
-            } => {
-                if match_any_sub_key(key, height, &sub_keys) {
-                    sub_proof.push(0x50);
-                    sub_proof.extend(&self.0[program_index - 32..program_index]);
+                OpCodeContext::P {
+                    key,
+                    height,
+                    program_index,
+                } => {
+                    if match_any_sub_key(key, height, &sub_keys) {
+                        sub_proof.push(0x50);
+                        sub_proof.extend(&self.0[program_index - 32..program_index]);
+                        is_last_merge_zero = false;
+                    }
                 }
-            }
-            OpCodeContext::Q {
-                key,
-                height,
-                program_index,
-            } => {
-                if match_any_sub_key(key, height, &sub_keys) {
-                    sub_proof.push(0x51);
-                    sub_proof.extend(&self.0[program_index - 65..program_index]);
+                OpCodeContext::Q {
+                    key,
+                    height,
+                    program_index,
+                } => {
+                    if match_any_sub_key(key, height, &sub_keys) {
+                        sub_proof.push(0x51);
+                        sub_proof.extend(&self.0[program_index - 65..program_index]);
+                        is_last_merge_zero = false;
+                    }
                 }
-            }
-            OpCodeContext::H {
-                key_a,
-                key_b,
-                height,
-                value_a,
-                value_b,
-            } => {
-                let key_a_included = match_any_sub_key(key_a, height, &sub_keys);
-                let key_b_included = match_any_sub_key(key_b, height, &sub_keys);
-                if key_a_included && key_b_included {
-                    sub_proof.push(0x48);
-                } else if key_a_included || key_b_included {
-                    let sibling_value = if key_a_included { &value_b } else { &value_a };
-                    match sibling_value {
-                        MergeValue::Value(hash) => {
-                            sub_proof.push(0x50);
-                            sub_proof.extend(hash.as_slice());
+                OpCodeContext::H {
+                    key_a,
+                    key_b,
+                    height,
+                    value_a,
+                    value_b,
+                } => {
+                    let key_a_included = match_any_sub_key(key_a, height, &sub_keys);
+                    let key_b_included = match_any_sub_key(key_b, height, &sub_keys);
+                    if key_a_included && key_b_included {
+                        sub_proof.push(0x48);
+                        is_last_merge_zero = false;
+                    } else if key_a_included || key_b_included {
+                        let sibling_value = if key_a_included { &value_b } else { &value_a };
+                        match sibling_value {
+                            MergeValue::Value(hash) => {
+                                if hash.is_zero() {
+                                    if is_last_merge_zero {
+                                        let last_n = *sub_proof.last().unwrap();
+                                        if last_n == 0 {
+                                            return Err(Error::CorruptedProof);
+                                        }
+                                        *sub_proof.last_mut().unwrap() = last_n.wrapping_add(1);
+                                    } else {
+                                        sub_proof.push(0x4F);
+                                        sub_proof.push(1);
+                                        is_last_merge_zero = true;
+                                    }
+                                } else {
+                                    sub_proof.push(0x50);
+                                    sub_proof.extend(hash.as_slice());
+                                    is_last_merge_zero = false;
+                                }
+                            }
+                            MergeValue::MergeWithZero {
+                                base_node,
+                                zero_bits,
+                                zero_count,
+                            } => {
+                                sub_proof.push(0x51);
+                                sub_proof.push(*zero_count);
+                                sub_proof.extend(base_node.as_slice());
+                                sub_proof.extend(zero_bits.as_slice());
+                                is_last_merge_zero = false;
+                            }
+                        };
+                    }
+                }
+                OpCodeContext::O { key, height, n } => {
+                    if match_any_sub_key(key, height, &sub_keys) {
+                        if is_last_merge_zero {
+                            let last_n = *sub_proof.last().unwrap();
+                            if last_n == 0 || (last_n as u16 + n as u16) > 256 {
+                                return Err(Error::CorruptedProof);
+                            }
+                            *sub_proof.last_mut().unwrap() = last_n.wrapping_add(n);
+                        } else {
+                            sub_proof.push(0x4F);
+                            sub_proof.push(n);
+                            is_last_merge_zero = true;
                         }
-                        MergeValue::MergeWithZero {
-                            base_node,
-                            zero_bits,
-                            zero_count,
-                        } => {
-                            sub_proof.push(0x51);
-                            sub_proof.push(*zero_count);
-                            sub_proof.extend(base_node.as_slice());
-                            sub_proof.extend(zero_bits.as_slice());
-                        }
-                    };
+                    }
                 }
             }
-            OpCodeContext::O { key, height, n } => {
-                if match_any_sub_key(key, height, &sub_keys) {
-                    sub_proof.push(0x4F);
-                    sub_proof.push(n);
-                }
-            }
+            Ok(())
         };
         self.compute_root_inner::<H, _>(leaves, &mut callback)?;
         Ok(CompiledMerkleProof(sub_proof))
     }
 
     pub fn compute_root<H: Hasher + Default>(&self, leaves: Vec<(H256, H256)>) -> Result<H256> {
-        self.compute_root_inner::<H, _>(leaves, |_| {})
+        self.compute_root_inner::<H, _>(leaves, |_| Ok(()))
     }
 
     pub fn verify<H: Hasher + Default>(
