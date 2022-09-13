@@ -1,8 +1,10 @@
 /target
+/crates/smt/target
+/crates/smt-rocksdb/target
 **/*.rs.bk
 Cargo.lock
 .vscode
 *.vi
-
+crates/smt-rocksdb/.tmp/
 c/rust-tests/target
 c/rust-tests/Cargo.lock

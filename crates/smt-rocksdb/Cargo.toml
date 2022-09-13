@@ -1,0 +1,26 @@
+[package]
+name = "smt-rocksdb"
+version = "1.6.0"
+authors = ["Nervos Network"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rocksdb = { package = "ckb-rocksdb", version = "0.18", default-features = false, features = ["snappy", "march-native"] }
+libc = "0.2"
+thiserror = "1.0"
+tempfile = "3.0"
+log = "0.4.14"
+serde = { version = "1.0", features = ["derive"] }
+sparse-merkle-tree = { path = "../smt" }
+
+[dev-dependencies]
+tempfile = "3.0"
+proptest = "0.9"
+criterion = "0.2"
+rand = "0.8"
+
+[[bench]]
+name = "smt_rocksdb_benchmark"
+harness = false

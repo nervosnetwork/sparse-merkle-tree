@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 
-sparse-merkle-tree = { path = "../../" }
+sparse-merkle-tree = { path = "../../crates/smt" }
 blake2b-rs = "0.2"
 proptest = "0.9"
 criterion = "0.2"

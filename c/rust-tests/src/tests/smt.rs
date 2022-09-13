@@ -249,12 +249,9 @@ fn run_test_case(case: Case) -> AnyResult<()> {
                 return Ok(());
             }
         };
-        let ckb_actual_compiled_proof = ckb_actual_proof.clone().compile(
-            leaves
-                .iter()
-                .map(|(k, _v)| (*k).into())
-                .collect(),
-        )?;
+        let ckb_actual_compiled_proof = ckb_actual_proof
+            .clone()
+            .compile(leaves.iter().map(|(k, _v)| (*k).into()).collect())?;
         let ckb_actual_compiled_proof_bin: Vec<u8> = ckb_actual_compiled_proof.clone().into();
 
         let mut smt_state = SmtCImpl::new(leaves.len() as u32);
@@ -285,9 +282,12 @@ fn hex2bin(src: String) -> Vec<u8> {
 
 #[test]
 fn test_smt_c_verify1() {
-    let key = hex2bin("381dc5391dab099da5e28acd1ad859a051cf18ace804d037f12819c6fbc0e18b".to_owned());
-    let value = hex2bin("9158ce9b0e11dd150ba2ae5d55c1db04b1c5986ec626f2e38a93fe8ad0b2923b".to_owned());
-    let root_hash = hex2bin("ebe0fab376cd802d364eeb44af20c67a74d6183a33928fead163120ef12e6e06".to_owned());
+    let key =
+        hex2bin("381dc5391dab099da5e28acd1ad859a051cf18ace804d037f12819c6fbc0e18b".to_owned());
+    let value =
+        hex2bin("9158ce9b0e11dd150ba2ae5d55c1db04b1c5986ec626f2e38a93fe8ad0b2923b".to_owned());
+    let root_hash =
+        hex2bin("ebe0fab376cd802d364eeb44af20c67a74d6183a33928fead163120ef12e6e06".to_owned());
     let proof = hex2bin(
         "4c4fff51ff322de8a89fe589987f97220cfcb6820bd798b31a0b56ffea221093d35f909e580b00000000000000000000000000000000000000000000000000000000000000".to_owned());
 
@@ -296,16 +296,24 @@ fn test_smt_c_verify1() {
         smt_state_insert(changes, key.as_ptr(), value.as_ptr());
         smt_state_normalize(changes);
 
-        let verify_ref = smt_verify(root_hash.as_ptr(), changes, proof.as_ptr(), proof.len() as u32);
+        let verify_ref = smt_verify(
+            root_hash.as_ptr(),
+            changes,
+            proof.as_ptr(),
+            proof.len() as u32,
+        );
         assert_eq!(0, verify_ref);
     }
 }
 
 #[test]
 fn test_smt_c_verify2() {
-    let key = hex2bin("a9bb945be71f0bd2757d33d2465b6387383da42f321072e47472f0c9c7428a8a".to_owned());
-    let value = hex2bin("a939a47335f777eac4c40fbc0970e25f832a24e1d55adc45a7b76d63fe364e82".to_owned());
-    let root_hash = hex2bin("6e5c722644cd55cef8c4ed886cd8b44027ae9ed129e70a4b67d87be1c6857842".to_owned());
+    let key =
+        hex2bin("a9bb945be71f0bd2757d33d2465b6387383da42f321072e47472f0c9c7428a8a".to_owned());
+    let value =
+        hex2bin("a939a47335f777eac4c40fbc0970e25f832a24e1d55adc45a7b76d63fe364e82".to_owned());
+    let root_hash =
+        hex2bin("6e5c722644cd55cef8c4ed886cd8b44027ae9ed129e70a4b67d87be1c6857842".to_owned());
     let proof = hex2bin(
         "4c4fff51fa8aaa2aece17b92ec3f202a40a09f7286522bae1e5581a2a49195ab6781b1b8090000000000000000000000000000000000000000000000000000000000000000".to_owned());
 
@@ -314,7 +322,12 @@ fn test_smt_c_verify2() {
         smt_state_insert(changes, key.as_ptr(), value.as_ptr());
         smt_state_normalize(changes);
 
-        let verify_ref = smt_verify(root_hash.as_ptr(), changes, proof.as_ptr(), proof.len() as u32);
+        let verify_ref = smt_verify(
+            root_hash.as_ptr(),
+            changes,
+            proof.as_ptr(),
+            proof.len() as u32,
+        );
         assert_eq!(0, verify_ref);
     }
 }
