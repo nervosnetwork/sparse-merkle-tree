@@ -1,7 +1,7 @@
 use crate::{
     collections,
     error::Error,
-    traits::Store,
+    traits::{StoreReadOps, StoreWriteOps},
     tree::{BranchKey, BranchNode},
     H256,
 };
@@ -25,13 +25,16 @@ impl<V> DefaultStore<V> {
     }
 }
 
-impl<V: Clone> Store<V> for DefaultStore<V> {
+impl<V: Clone> StoreReadOps<V> for DefaultStore<V> {
     fn get_branch(&self, branch_key: &BranchKey) -> Result<Option<BranchNode>, Error> {
         Ok(self.branches_map.get(branch_key).map(Clone::clone))
     }
     fn get_leaf(&self, leaf_key: &H256) -> Result<Option<V>, Error> {
         Ok(self.leaves_map.get(leaf_key).map(Clone::clone))
     }
+}
+
+impl<V> StoreWriteOps<V> for DefaultStore<V> {
     fn insert_branch(&mut self, branch_key: BranchKey, branch: BranchNode) -> Result<(), Error> {
         self.branches_map.insert(branch_key, branch);
         Ok(())

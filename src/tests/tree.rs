@@ -398,7 +398,7 @@ proptest! {
     #[test]
     fn test_smt_single_leaf_small((pairs, _n) in leaves(1, 50)){
         let smt = new_smt(pairs.clone());
-        for (k, v) in pairs.clone() {
+        for (k, v) in pairs {
             let proof = smt.merkle_proof(vec![k]).expect("gen proof");
             let compiled_proof = proof.clone().compile(vec![k]).expect("compile proof");
             assert!(proof.verify::<Blake2bHasher>(smt.root(), vec![(k, v)]).expect("verify proof"));
