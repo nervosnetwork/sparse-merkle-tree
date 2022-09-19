@@ -3,7 +3,7 @@ use crate::{
     error::{Error, Result},
     merge::{merge, MergeValue},
     merkle_proof::MerkleProof,
-    traits::{Hasher, Store, Value},
+    traits::{Hasher, StoreReadOps, StoreWriteOps, Value},
     vec::Vec,
     H256, MAX_STACK_SIZE,
 };
@@ -52,7 +52,7 @@ pub struct SparseMerkleTree<H, V, S> {
     phantom: PhantomData<(H, V)>,
 }
 
-impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
+impl<H, V, S> SparseMerkleTree<H, V, S> {
     /// Build a merkle tree from root and store
     pub fn new(root: H256, store: S) -> SparseMerkleTree<H, V, S> {
         SparseMerkleTree {
@@ -86,7 +86,11 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
     pub fn store_mut(&mut self) -> &mut S {
         &mut self.store
     }
+}
 
+impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
+    SparseMerkleTree<H, V, S>
+{
     /// Update a leaf, return new merkle root
     /// set to zero value to delete a key
     pub fn update(&mut self, key: H256, value: V) -> Result<&H256> {
@@ -220,7 +224,9 @@ impl<H: Hasher + Default, V: Value, S: Store<V>> SparseMerkleTree<H, V, S> {
 
         Ok(&self.root)
     }
+}
 
+impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S> {
     /// Get value of a leaf
     /// return zero value if leaf not exists
     pub fn get(&self, key: &H256) -> Result<V> {
