@@ -1,12 +1,15 @@
+#[cfg(feature = "smtc")]
 use std::convert::TryInto;
 
 use crate::*;
 use blake2b_rs::{Blake2b, Blake2bBuilder};
 use default_store::DefaultStore;
+#[cfg(feature = "smtc")]
 use hex::decode;
 use proptest::prelude::*;
 use traits::Hasher;
 
+#[cfg(feature = "smtc")]
 fn str_to_h256(src: &str) -> H256 {
     let src = decode(src).unwrap();
     assert!(src.len() == 32);
@@ -14,10 +17,12 @@ fn str_to_h256(src: &str) -> H256 {
     H256::from(data)
 }
 
+#[cfg(feature = "smtc")]
 fn str_to_vec(src: &str) -> Vec<u8> {
     decode(src).unwrap()
 }
 
+#[cfg(feature = "smtc")]
 #[test]
 fn test_ckb_smt_verify1() {
     let key = str_to_h256("381dc5391dab099da5e28acd1ad859a051cf18ace804d037f12819c6fbc0e18b");
@@ -33,6 +38,7 @@ fn test_ckb_smt_verify1() {
     assert!(smt.verify(&root_hash, &proof).is_ok());
 }
 
+#[cfg(feature = "smtc")]
 #[test]
 fn test_ckb_smt_verify2() {
     let key = str_to_h256("a9bb945be71f0bd2757d33d2465b6387383da42f321072e47472f0c9c7428a8a");
@@ -48,6 +54,7 @@ fn test_ckb_smt_verify2() {
     assert!(smt.verify(&root_hash, &proof).is_ok());
 }
 
+#[cfg(feature = "smtc")]
 #[test]
 fn test_ckb_smt_verify3() {
     let key = str_to_h256("e8c0265680a02b680b6cbc880348f062b825b28e237da7169aded4bcac0a04e5");
@@ -63,6 +70,7 @@ fn test_ckb_smt_verify3() {
     assert!(smt.verify(&root_hash, &proof).is_ok());
 }
 
+#[cfg(feature = "smtc")]
 #[test]
 fn test_ckb_smt_verify_invalid() {
     let key = str_to_h256("e8c0265680a02b680b6cbc880348f062b825b28e237da7169aded4bcac0a04e5");
@@ -136,11 +144,14 @@ proptest! {
                     .verify::<CkbBlake2bHasher>(tree.root(), vec![(key, value)])
                     .expect("verify compiled one proof"));
 
-            let compiled_proof_bin: Vec<u8> = compiled_proof.into();
-            let smt_state = SMTBuilder::new();
-            let smt_state = smt_state.insert(&key, &value).unwrap();
-            let smt = smt_state.build().unwrap();
-            smt.verify(tree.root(), &compiled_proof_bin).expect("verify with c");
+            #[cfg(feature = "smtc")]
+            {
+                let compiled_proof_bin: Vec<u8> = compiled_proof.into();
+                let smt_state = SMTBuilder::new();
+                let smt_state = smt_state.insert(&key, &value).unwrap();
+                let smt = smt_state.build().unwrap();
+                smt.verify(tree.root(), &compiled_proof_bin).expect("verify with c");
+            }
         }
     }
 }
