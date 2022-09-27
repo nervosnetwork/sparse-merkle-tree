@@ -6,13 +6,21 @@ edition = "2018"
 license = "MIT"
 repository = "https://github.com/nervosnetwork/sparse-merkle-tree"
 description = "Sparse merkle tree implement in rust"
-exclude = ["/fixtures", "/proptest-regressions"]
+include = [
+  "/src",
+  "/benches",
+  "/build.rs",
+  "/c/deps/ckb-c-stdlib",
+  "/c/ckb_smt.h",
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
 default = ["std"]
 std = []
+# SMT implemented in C
+smtc = []
 
 [dependencies]
 cfg-if = "0.1"
