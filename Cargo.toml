@@ -21,6 +21,8 @@ default = ["std"]
 std = []
 # SMT implemented in C
 smtc = []
+# A storage optimized SMT implemented in trie (https://ouvrard-pierre-alain.medium.com/sparse-merkle-tree-86e6e2fc26da)
+trie = []
 
 [dependencies]
 cfg-if = "0.1"
