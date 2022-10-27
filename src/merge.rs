@@ -12,6 +12,7 @@ pub enum MergeValue {
         zero_bits: H256,
         zero_count: u8,
     },
+    #[cfg(feature = "trie")]
     ShortCut {
         key: H256,
         value: H256,
@@ -32,10 +33,11 @@ impl MergeValue {
         match self {
             MergeValue::Value(v) => v.is_zero(),
             MergeValue::MergeWithZero {
-                base_node,
+                base_node: _,
                 zero_bits: _,
                 zero_count: _,
-            } => base_node.is_zero(),
+            } => false,
+            #[cfg(feature = "trie")]
             MergeValue::ShortCut {
                 key: _,
                 value,
@@ -44,10 +46,12 @@ impl MergeValue {
         }
     }
 
+    #[cfg(feature = "trie")]
     pub fn shortcut(key: H256, value: H256, height: u8) -> Self {
         MergeValue::ShortCut { key, value, height }
     }
 
+    #[cfg(feature = "trie")]
     pub fn is_shortcut(&self) -> bool {
         matches!(self, MergeValue::ShortCut { .. })
     }
@@ -67,11 +71,8 @@ impl MergeValue {
                 hasher.write_byte(*zero_count);
                 hasher.finish()
             }
-            MergeValue::ShortCut {
-                key: _,
-                value,
-                height: _,
-            } => {
+            #[cfg(feature = "trie")]
+            MergeValue::ShortCut { key, value, height } => {
                 // try keep hash same with MergeWithZero
                 if value.is_zero() {
                     return H256::zero();
@@ -203,6 +204,7 @@ fn merge_with_zero<H: Hasher + Default>(
                 zero_count: zero_count.wrapping_add(1),
             }
         }
+        #[cfg(feature = "trie")]
         MergeValue::ShortCut {
             key,
             value,
