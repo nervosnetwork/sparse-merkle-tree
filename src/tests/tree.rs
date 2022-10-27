@@ -168,6 +168,15 @@ fn test_delete_a_leaf() {
     .into();
     tree.update(key, value).unwrap();
     assert_ne!(tree.root(), &H256::zero());
+
+    let key = [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 2,
+    ]
+    .into();
+
+    tree.update(key, value).unwrap();
+
     let root = *tree.root();
     let store = tree.store().clone();
 
@@ -690,6 +699,39 @@ fn test_v0_3_broken_sample() {
     smt.update(k2.into(), v2.into()).unwrap();
     smt.update(k3.into(), v3.into()).unwrap();
     assert_eq!(smt.get(&k1.into()).unwrap(), v1.into());
+}
+
+#[test]
+fn test_trie_broken_sample() {
+    let keys = vec![
+        "f652222313e28459528d920b65115c16c04f3efc82aaedc97be59f3f377c0d40",
+        "5eff886ea0ce6ca488a3d6e336d6c0f75f46d19b42c06ce5ee98e42c96d256c7",
+        "6d5257204ebe7d88fd91ae87941cb2dd9d8062b64ae5a2bd2d28ec40b9fbf6df",
+    ]
+    .into_iter()
+    .map(parse_h256);
+
+    let values = vec![
+        "0000000000000000000000000000000000000000000000000000000000000001",
+        "0000000000000000000000000000000000000000000000000000000000000002",
+        "0000000000000000000000000000000000000000000000000000000000000003",
+    ]
+    .into_iter()
+    .map(parse_h256);
+
+    let mut pairs = keys.zip(values).collect::<Vec<_>>();
+    let smt = new_smt(pairs.clone());
+    let base_root = *smt.root();
+    let base_branches = smt.store().branches_map();
+
+    pairs.reverse();
+    let smt = new_smt(pairs.clone());
+    let current_root = *smt.root();
+
+    let current_branches = smt.store().branches_map();
+
+    //assert_eq!(base_root, current_root);
+    assert_eq!(base_branches, current_branches);
 }
 
 #[test]

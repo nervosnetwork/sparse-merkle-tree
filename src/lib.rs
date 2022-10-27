@@ -62,6 +62,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod blake2b;
+pub mod branch;
 #[cfg(feature = "smtc")]
 pub mod ckb_smt;
 pub mod default_store;
@@ -73,12 +74,14 @@ pub mod merkle_proof;
 mod tests;
 pub mod traits;
 pub mod tree;
+pub mod trie_tree;
 
 #[cfg(feature = "smtc")]
 pub use ckb_smt::{SMTBuilder, SMT};
 pub use h256::H256;
 pub use merkle_proof::{CompiledMerkleProof, MerkleProof};
-pub use tree::SparseMerkleTree;
+//pub use tree::SparseMerkleTree;
+pub use trie_tree::SparseMerkleTree;
 
 /// Expected path size: log2(256) * 2, used for hint vector capacity
 pub const EXPECTED_PATH_SIZE: usize = 16;
