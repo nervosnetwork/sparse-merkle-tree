@@ -88,6 +88,23 @@ impl<H, V, S> SparseMerkleTree<H, V, S> {
     }
 }
 
+impl<H: Hasher + Default, V, S: StoreReadOps<V>> SparseMerkleTree<H, V, S> {
+    /// Build a merkle tree from store, the root will be calculated automatically
+    pub fn new_with_store(store: S) -> Result<SparseMerkleTree<H, V, S>> {
+        let root_branch_key = BranchKey::new(core::u8::MAX, H256::zero());
+        store
+            .get_branch(&root_branch_key)
+            .map(|branch_node| {
+                branch_node
+                    .map(|n| {
+                        merge::<H>(core::u8::MAX, &H256::zero(), &n.left, &n.right).hash::<H>()
+                    })
+                    .unwrap_or_default()
+            })
+            .map(|root| SparseMerkleTree::new(root, store))
+    }
+}
+
 impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
     SparseMerkleTree<H, V, S>
 {
