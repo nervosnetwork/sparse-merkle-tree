@@ -39,5 +39,9 @@ anyhow = "1.0"
 name = "smt_benchmark"
 harness = false
 
+[[bench]]
+name = "store_counter_benchmark"
+harness = false
+
 [build-dependencies]
 cc = "1.0"

@@ -74,7 +74,11 @@ impl MergeValue {
                 hasher.write_byte(*zero_count);
                 hasher.finish()
             }
-            MergeValue::ShortCut { key: _, value, height: _ } => {
+            MergeValue::ShortCut {
+                key: _,
+                value,
+                height: _,
+            } => {
                 // try keep hash same with MergeWithZero
                 if value.is_zero() {
                     return H256::zero();
@@ -86,16 +90,20 @@ impl MergeValue {
 
     pub fn base_node<H: Hasher + Default>(&self) -> H256 {
         match self {
-            MergeValue::ShortCut { key, value, height: _ } => {
+            MergeValue::ShortCut {
+                key,
+                value,
+                height: _,
+            } => {
                 let base_key = key.parent_path(0);
                 hash_base_node::<H>(0, &base_key, value)
-            },
-            MergeValue::MergeWithZero { base_node, zero_bits: _, zero_count: _ } => {
-                *base_node
-            },
-            MergeValue::Value(value) => {
-                *value
             }
+            MergeValue::MergeWithZero {
+                base_node,
+                zero_bits: _,
+                zero_count: _,
+            } => *base_node,
+            MergeValue::Value(value) => *value,
         }
     }
 
@@ -115,11 +123,12 @@ impl MergeValue {
                     zero_bits,
                     zero_count: *height,
                 }
-
-            },
-            MergeValue::MergeWithZero { base_node:_, zero_bits: _, zero_count: _ } => {
-                self.clone()
-            },
+            }
+            MergeValue::MergeWithZero {
+                base_node: _,
+                zero_bits: _,
+                zero_count: _,
+            } => self.clone(),
             MergeValue::Value(_) => {
                 unreachable!();
             }
@@ -222,8 +231,7 @@ fn merge_with_zero<H: Hasher + Default>(
                     zero_bits,
                     zero_count: 0,
                 }
-            }
-             else {
+            } else {
                 MergeValue::shortcut(*key, *value, height + 1)
             }
         }

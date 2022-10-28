@@ -266,9 +266,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
         let mut proof: Vec<MergeValue> = Default::default();
         for current_key in &keys {
             let mut bitmap = H256::zero();
-            for height in (0..=core::u8::MAX).rev() {
-
-            }
+            for height in (0..=core::u8::MAX).rev() {}
 
             leaves_bitmap.push(bitmap);
         }
