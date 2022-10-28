@@ -30,7 +30,6 @@ impl Value for H256 {
 pub trait StoreReadOps<V> {
     fn get_branch(&self, branch_key: &BranchKey) -> Result<Option<BranchNode>, Error>;
     fn get_leaf(&self, leaf_key: &H256) -> Result<Option<V>, Error>;
-    fn get_leaves_len(&self) -> usize;
 }
 
 pub trait StoreWriteOps<V> {

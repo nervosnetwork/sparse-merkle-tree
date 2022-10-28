@@ -84,10 +84,6 @@ impl<V: Clone> StoreReadOps<V> for DefaultStore<V> {
     fn get_leaf(&self, leaf_key: &H256) -> Result<Option<V>, Error> {
         Ok(self.leaves_map.get(leaf_key).map(Clone::clone))
     }
-
-    fn get_leaves_len(&self) -> usize {
-        self.leaves_map.len()
-    }
 }
 
 impl<V> StoreWriteOps<V> for DefaultStore<V> {
