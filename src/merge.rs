@@ -217,18 +217,10 @@ fn merge_with_zero<H: Hasher + Default>(
         } => {
             if height == core::u8::MAX {
                 let base_key = key.parent_path(0);
-
                 let base_node = hash_base_node::<H>(0, &base_key, value);
-
-                let mut zero_bits = key.clone();
-                for i in height..=core::u8::MAX {
-                    if key.is_right(i) {
-                        zero_bits.clear_bit(i);
-                    }
-                }
                 MergeValue::MergeWithZero {
                     base_node,
-                    zero_bits,
+                    zero_bits: key.clone(),
                     zero_count: 0,
                 }
             } else {
