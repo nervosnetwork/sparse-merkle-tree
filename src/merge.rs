@@ -49,14 +49,7 @@ impl MergeValue {
     }
 
     pub fn is_shortcut(&self) -> bool {
-        match self {
-            MergeValue::ShortCut {
-                key: _,
-                value: _,
-                height: _,
-            } => true,
-            _ => false,
-        }
+        matches!(self, MergeValue::ShortCut { .. })
     }
 
     pub fn hash<H: Hasher + Default>(&self) -> H256 {
@@ -112,7 +105,7 @@ impl MergeValue {
             MergeValue::ShortCut { key, value, height } => {
                 let base_key = key.parent_path(0);
                 let base_node = hash_base_node::<H>(0, &base_key, value);
-                let mut zero_bits = key.clone();
+                let mut zero_bits = *key;
                 for i in *height..=core::u8::MAX {
                     if key.is_right(i) {
                         zero_bits.clear_bit(i);
@@ -220,7 +213,7 @@ fn merge_with_zero<H: Hasher + Default>(
                 let base_node = hash_base_node::<H>(0, &base_key, value);
                 MergeValue::MergeWithZero {
                     base_node,
-                    zero_bits: key.clone(),
+                    zero_bits: *key,
                     zero_count: 0,
                 }
             } else {
