@@ -62,7 +62,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod blake2b;
-pub mod branch;
 #[cfg(feature = "smtc")]
 pub mod ckb_smt;
 pub mod default_store;
@@ -84,6 +83,7 @@ pub use h256::H256;
 pub use merkle_proof::{CompiledMerkleProof, MerkleProof};
 #[cfg(not(feature = "trie"))]
 pub use tree::SparseMerkleTree;
+pub use tree::{BranchKey, BranchNode};
 #[cfg(feature = "trie")]
 pub use trie_tree::SparseMerkleTree;
 

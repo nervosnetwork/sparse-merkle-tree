@@ -264,6 +264,7 @@ fn test_update(key: H256, value: H256) {
     assert_eq!(tree.get(&key), Ok(value));
 }
 
+#[cfg(not(feature = "trie"))]
 fn test_update_tree_store(key: H256, value: H256, value2: H256) {
     const EXPECTED_LEAVES_LEN: usize = 1;
 
@@ -389,6 +390,7 @@ proptest! {
         test_update(key.into(), value.into());
     }
 
+    #[cfg(not(feature = "trie"))]
     #[test]
     fn test_random_update_tree_store(key: [u8;32], value: [u8;32], value2: [u8;32]) {
         test_update_tree_store(key.into(), value.into(), value2.into());
@@ -721,16 +723,10 @@ fn test_trie_broken_sample() {
 
     let mut pairs = keys.zip(values).collect::<Vec<_>>();
     let smt = new_smt(pairs.clone());
-    let base_root = *smt.root();
     let base_branches = smt.store().branches_map();
-
     pairs.reverse();
     let smt = new_smt(pairs.clone());
-    let current_root = *smt.root();
-
     let current_branches = smt.store().branches_map();
-
-    //assert_eq!(base_root, current_root);
     assert_eq!(base_branches, current_branches);
 }
 

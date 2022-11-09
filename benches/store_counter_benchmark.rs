@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use rand::{thread_rng, Rng};
 use sparse_merkle_tree::{
     blake2b::Blake2bHasher,
-    branch::{BranchKey, BranchNode},
+    tree::{BranchKey, BranchNode},
     default_store::DefaultStore,
     error::Error,
     traits::{StoreReadOps, StoreWriteOps},

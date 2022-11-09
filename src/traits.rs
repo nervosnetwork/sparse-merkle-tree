@@ -1,6 +1,6 @@
 use crate::{
-    branch::{BranchKey, BranchNode},
     error::Error,
+    tree::{BranchKey, BranchNode},
     H256,
 };
 

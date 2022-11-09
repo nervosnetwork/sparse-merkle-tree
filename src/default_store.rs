@@ -1,8 +1,8 @@
 use crate::{
-    branch::{BranchKey, BranchNode},
     collections,
     error::Error,
     traits::{StoreReadOps, StoreWriteOps},
+    tree::{BranchKey, BranchNode},
     H256,
 };
 
