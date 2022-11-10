@@ -72,7 +72,6 @@ pub mod merkle_proof;
 #[cfg(test)]
 mod tests;
 pub mod traits;
-#[cfg(not(feature = "trie"))]
 pub mod tree;
 #[cfg(feature = "trie")]
 pub mod trie_tree;

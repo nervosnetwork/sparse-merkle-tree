@@ -104,6 +104,7 @@ impl MerkleProof {
                                 buffer.extend_from_slice(zero_bits.as_slice());
                                 (Some(0x51), Some(buffer))
                             }
+                            #[cfg(feature = "trie")]
                             _ => unreachable!(),
                         }
                     } else {
@@ -502,6 +503,7 @@ impl CompiledMerkleProof {
                                 sub_proof.extend(zero_bits.as_slice());
                                 is_last_merge_zero = false;
                             }
+                            #[cfg(feature = "trie")]
                             _ => {}
                         };
                     }

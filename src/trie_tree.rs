@@ -53,6 +53,23 @@ impl<H, V, S> SparseMerkleTree<H, V, S> {
     }
 }
 
+impl<H: Hasher + Default, V, S: StoreReadOps<V>> SparseMerkleTree<H, V, S> {
+    /// Build a merkle tree from store, the root will be calculated automatically
+    pub fn new_with_store(store: S) -> Result<SparseMerkleTree<H, V, S>> {
+        let root_branch_key = BranchKey::new(core::u8::MAX, H256::zero());
+        store
+            .get_branch(&root_branch_key)
+            .map(|branch_node| {
+                branch_node
+                    .map(|n| {
+                        merge::<H>(core::u8::MAX, &H256::zero(), &n.left, &n.right).hash::<H>()
+                    })
+                    .unwrap_or_default()
+            })
+            .map(|root| SparseMerkleTree::new(root, store))
+    }
+}
+
 impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
     SparseMerkleTree<H, V, S>
 {
@@ -126,18 +143,16 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
                                         MergeValue::from_h256(node.hash::<H>()),
                                     )
                                 }
+                            } else if last_height != 0 {
+                                (
+                                    MergeValue::shortcut(key, node.hash::<H>(), last_height),
+                                    MergeValue::shortcut(this_key, value, last_height),
+                                )
                             } else {
-                                if last_height != 0 {
-                                    (
-                                        MergeValue::shortcut(key, node.hash::<H>(), last_height),
-                                        MergeValue::shortcut(this_key, value, last_height),
-                                    )
-                                } else {
-                                    (
-                                        MergeValue::from_h256(node.hash::<H>()),
-                                        MergeValue::from_h256(value),
-                                    )
-                                }
+                                (
+                                    MergeValue::from_h256(node.hash::<H>()),
+                                    MergeValue::from_h256(value),
+                                )
                             };
 
                             let next_branch_key =
@@ -156,7 +171,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
                     _ => {
                         if target.is_zero() || last_height == 0 {
                             let insert_value = if last_height == 0 {
-                                node.clone()
+                                node
                             } else {
                                 MergeValue::shortcut(key, node.hash::<H>(), last_height)
                             };
@@ -190,13 +205,11 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
                 self.store
                     .insert_branch(branch_key, BranchNode { left, right })?;
                 break; // stop walking
+            } else if last_height != 0 {
+                last_height -= 1;
             } else {
-                if last_height != 0 {
-                    last_height -= 1;
-                } else {
-                    // do nothing with a zero insertion
-                    break;
-                }
+                // do nothing with a zero insertion
+                break;
             }
         }
 
@@ -415,11 +428,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
                                 };
 
                                 match current {
-                                    MergeValue::ShortCut {
-                                        key,
-                                        value,
-                                        ..
-                                    } => {
+                                    MergeValue::ShortCut { key, value, .. } => {
                                         if !key.eq(&leaf_key) {
                                             let fork_at = key.fork_height(&leaf_key);
                                             if fork_at == height {
@@ -454,8 +463,11 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
 }
 
 /// Helper function for a merkle_path insertion
-fn push_result_maybe_shortcut<H: Hasher + Default>(proof_result: &mut Vec<MergeValue>, value: MergeValue) {
-    if value.is_shortcut(){
+fn push_result_maybe_shortcut<H: Hasher + Default>(
+    proof_result: &mut Vec<MergeValue>,
+    value: MergeValue,
+) {
+    if value.is_shortcut() {
         proof_result.push(value.into_merge_with_zero::<H>())
     } else {
         proof_result.push(value)

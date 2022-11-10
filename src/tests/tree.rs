@@ -1,7 +1,7 @@
 use crate::*;
 use crate::{
     blake2b::Blake2bHasher, default_store::DefaultStore, error::Error, merge::MergeValue,
-    MerkleProof, SparseMerkleTree,
+    MerkleProof,
 };
 use proptest::prelude::*;
 use rand::prelude::{Rng, SliceRandom};
