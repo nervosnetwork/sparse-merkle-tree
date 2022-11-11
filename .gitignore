@@ -6,3 +6,4 @@ Cargo.lock
 
 c/rust-tests/target
 c/rust-tests/Cargo.lock
+c/rust-tests/ckb_smt.obj

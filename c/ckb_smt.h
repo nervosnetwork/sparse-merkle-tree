@@ -13,6 +13,12 @@
 #define RESTRICT
 #endif
 
+#ifdef __GNUC__
+#define SMT_DLL_EXPORT
+#else
+#define SMT_DLL_EXPORT __declspec(dllexport)
+#endif
+
 // The faster version of memset & memcpy implementations used here are from
 // the awesome musl libc project: https://www.musl-libc.org/
 void *_smt_fast_memset(void *dest, int c, size_t n)
