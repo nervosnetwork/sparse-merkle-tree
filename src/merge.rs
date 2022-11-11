@@ -122,7 +122,7 @@ impl MergeValue {
                 let base_node = hash_base_node::<H>(0, &base_key, value);
                 let mut zero_bits = *key;
                 for i in *height..=core::u8::MAX {
-                    if key.is_right(i) {
+                    if key.get_bit(i) {
                         zero_bits.clear_bit(i);
                     }
                 }
@@ -217,7 +217,7 @@ pub fn merge_with_zero<H: Hasher + Default>(
         MergeValue::ShortCut {
             key,
             value,
-            height: _,
+            ..
         } => {
             if height == core::u8::MAX {
                 let base_key = key.parent_path(0);
