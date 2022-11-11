@@ -11,6 +11,13 @@ fn main() {
         .include("..")
         .include("../deps/ckb-c-stdlib")
         .flag("/Wall")
+        .flag("/WX")
+        .flag("/wd5045")
+        .flag("/wd4820")
+        .flag("/wd4711")
+        .flag("/wd4244")
+        .flag("/wd4242")
+        .flag("/wd4146")
         .define("__SHARED_LIBRARY__", None)
         .define("CKB_STDLIB_NO_SYSCALL_IMPL", None)
         .compile("dl-c-impl");
