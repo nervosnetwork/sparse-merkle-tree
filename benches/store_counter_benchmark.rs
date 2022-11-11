@@ -9,8 +9,7 @@ use sparse_merkle_tree::{
     default_store::DefaultStore,
     error::Error,
     traits::{StoreReadOps, StoreWriteOps},
-    tree::{BranchKey, BranchNode},
-    SparseMerkleTree, H256,
+    BranchKey, BranchNode, SparseMerkleTree, H256,
 };
 
 #[derive(Debug, Default)]

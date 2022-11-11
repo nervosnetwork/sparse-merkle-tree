@@ -72,9 +72,9 @@ pub mod merkle_proof;
 #[cfg(test)]
 mod tests;
 pub mod traits;
-pub mod tree;
+mod tree;
 #[cfg(feature = "trie")]
-pub mod trie_tree;
+mod trie_tree;
 
 #[cfg(feature = "smtc")]
 pub use ckb_smt::{SMTBuilder, SMT};
