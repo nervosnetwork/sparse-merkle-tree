@@ -444,7 +444,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
     }
 }
 
-/// Helper function for a merkle_path insertion
+// Helper function for a merkle_path insertion
 fn push_sibling<H: Hasher + Default>(proof_result: &mut Vec<MergeValue>, sibling: MergeValue) {
     if !sibling.is_zero() {
         if sibling.is_shortcut() {
