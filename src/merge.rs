@@ -90,28 +90,6 @@ impl MergeValue {
         }
     }
 
-    /// Helper function for get base_node
-    /// When call with MergeValue::Value(v), it would be v
-    pub fn base_node<H: Hasher + Default>(&self) -> H256 {
-        match self {
-            #[cfg(feature = "trie")]
-            MergeValue::ShortCut {
-                key,
-                value,
-                height: _,
-            } => {
-                let base_key = key.parent_path(0);
-                hash_base_node::<H>(0, &base_key, value)
-            }
-            MergeValue::MergeWithZero {
-                base_node,
-                zero_bits: _,
-                zero_count: _,
-            } => *base_node,
-            MergeValue::Value(value) => *value,
-        }
-    }
-
     /// Helper function for Shortcut node
     /// Transform it into a MergeWithZero node
     #[cfg(feature = "trie")]
@@ -133,7 +111,7 @@ impl MergeValue {
                 }
             }
             _ => {
-                unreachable!();
+                panic!("Attempt to convert a MergeValue::Value into MergeValue::ShortCut, which is not supposed to be available.");
             }
         }
     }
@@ -214,11 +192,7 @@ pub fn merge_with_zero<H: Hasher + Default>(
             }
         }
         #[cfg(feature = "trie")]
-        MergeValue::ShortCut {
-            key,
-            value,
-            ..
-        } => {
+        MergeValue::ShortCut { key, value, .. } => {
             if height == core::u8::MAX {
                 let base_key = key.parent_path(0);
                 let base_node = hash_base_node::<H>(0, &base_key, value);

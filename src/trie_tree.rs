@@ -316,22 +316,14 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
                         (parent_branch.right, parent_branch.left)
                     };
 
-                    match target {
-                        MergeValue::ShortCut { key, .. } => {
-                            if !sibling.is_zero() {
-                                bitmap.set_bit(height);
-                            }
-                            if !key.eq(current_key) {
-                                let fork_height = key.fork_height(current_key);
-
-                                bitmap.set_bit(fork_height);
-                                break;
-                            }
-                        }
-                        _ => {
-                            if !sibling.is_zero() {
-                                bitmap.set_bit(height);
-                            }
+                    if !sibling.is_zero() {
+                        bitmap.set_bit(height);
+                    }
+                    if let MergeValue::ShortCut { key, .. } = target {
+                        if !key.eq(current_key) {
+                            let fork_height = key.fork_height(current_key);
+                            bitmap.set_bit(fork_height);
+                            break;
                         }
                     }
                 }
@@ -352,26 +344,25 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
                 core::u8::MAX
             };
 
-            let mut skip_height = Vec::new();
-            for height in 0..=fork_height {
-                if stack_top > 0 && stack_fork_height[stack_top - 1] == height {
-                    stack_top -= 1;
-                    skip_height.push(height);
-                }
-                if stack_top == 0 {
-                    break;
-                }
-            }
+            let heights = (0..=fork_height)
+                .into_iter()
+                .filter(|height| {
+                    if stack_top > 0 && stack_fork_height[stack_top - 1] == *height {
+                        stack_top -= 1;
+                        false
+                    } else {
+                        true
+                    }
+                })
+                .collect::<Vec<_>>();
 
             let mut proof_result = Vec::new();
-            for height in (0..=fork_height).rev() {
+            for height in heights.iter().copied().rev() {
                 if height == fork_height && leaf_index + 1 < keys.len() {
                     // If it's not final round, we don't need to merge to root (height=255)
                     continue;
                 }
-                if skip_height.contains(&height) {
-                    continue;
-                }
+
                 if leaves_bitmap[leaf_index].get_bit(height) {
                     let parent_key = leaf_key.parent_path(height);
                     let is_right = leaf_key.is_right(height);
@@ -382,35 +373,24 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
                         } else {
                             (parent_branch.right, parent_branch.left)
                         };
-
-                        match current {
-                            MergeValue::ShortCut { key, value, .. } => {
-                                if !sibling.is_zero() {
-                                    push_result_maybe_shortcut::<H>(&mut proof_result, sibling);
+                        push_sibling::<H>(&mut proof_result, sibling);
+                        if let MergeValue::ShortCut { key, value, .. } = current {
+                            if !key.eq(&leaf_key) {
+                                // this means key does not exist
+                                let fork_height = key.fork_height(&leaf_key);
+                                if leaves_bitmap[leaf_index].get_bit(fork_height)
+                                    && heights.contains(&fork_height)
+                                {
+                                    proof_result.push(
+                                        MergeValue::shortcut(key, value, fork_height)
+                                            .into_merge_with_zero::<H>(),
+                                    );
                                 }
-                                if !key.eq(&leaf_key) {
-                                    // this means key does not exist
-                                    let fork_height = key.fork_height(&leaf_key);
-                                    if leaves_bitmap[leaf_index].get_bit(fork_height)
-                                        && !skip_height.contains(&fork_height)
-                                    {
-                                        proof_result.push(
-                                            MergeValue::shortcut(key, value, fork_height)
-                                                .into_merge_with_zero::<H>(),
-                                        );
-                                    }
-
-                                    if fork_height == 1 && leaves_bitmap[leaf_index].get_bit(0) {
-                                        proof_result.push(MergeValue::from_h256(value));
-                                    }
-                                }
-                                break;
-                            }
-                            _ => {
-                                if !sibling.is_zero() {
-                                    push_result_maybe_shortcut::<H>(&mut proof_result, sibling);
+                                if fork_height == 1 && leaves_bitmap[leaf_index].get_bit(0) {
+                                    proof_result.push(MergeValue::from_h256(value));
                                 }
                             }
+                            break;
                         }
                     } else {
                         // Maybe we've skipped shortcut node, find from up to down
@@ -463,13 +443,12 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
 }
 
 /// Helper function for a merkle_path insertion
-fn push_result_maybe_shortcut<H: Hasher + Default>(
-    proof_result: &mut Vec<MergeValue>,
-    value: MergeValue,
-) {
-    if value.is_shortcut() {
-        proof_result.push(value.into_merge_with_zero::<H>())
-    } else {
-        proof_result.push(value)
+fn push_sibling<H: Hasher + Default>(proof_result: &mut Vec<MergeValue>, sibling: MergeValue) {
+    if !sibling.is_zero() {
+        if sibling.is_shortcut() {
+            proof_result.push(sibling.into_merge_with_zero::<H>())
+        } else {
+            proof_result.push(sibling)
+        }
     }
 }
