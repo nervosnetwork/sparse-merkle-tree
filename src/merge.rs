@@ -92,6 +92,7 @@ impl MergeValue {
 
     /// Helper function for Shortcut node
     /// Transform it into a MergeWithZero node
+    /// Notice: When tried to call with a MergeValue::Value, this function will panic
     #[cfg(feature = "trie")]
     pub fn into_merge_with_zero<H: Hasher + Default>(&self) -> MergeValue {
         match self {
