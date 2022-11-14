@@ -143,16 +143,18 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
                                         MergeValue::from_h256(node.hash::<H>()),
                                     )
                                 }
-                            } else if last_height != 0 {
-                                (
-                                    MergeValue::shortcut(key, node.hash::<H>(), last_height),
-                                    MergeValue::shortcut(this_key, value, last_height),
-                                )
                             } else {
-                                (
-                                    MergeValue::from_h256(node.hash::<H>()),
-                                    MergeValue::from_h256(value),
-                                )
+                                if last_height != 0 {
+                                    (
+                                        MergeValue::shortcut(key, node.hash::<H>(), last_height),
+                                        MergeValue::shortcut(this_key, value, last_height),
+                                    )
+                                } else {
+                                    (
+                                        MergeValue::from_h256(node.hash::<H>()),
+                                        MergeValue::from_h256(value),
+                                    )
+                                }
                             };
 
                             let next_branch_key =
