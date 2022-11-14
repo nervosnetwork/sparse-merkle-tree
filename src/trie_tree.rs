@@ -352,17 +352,19 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
                 core::u8::MAX
             };
 
-             let heights = (0..=fork_height).into_iter().filter(|height|
-                if stack_top > 0 && stack_fork_height[stack_top - 1] == *height {
+            let mut skip_height = Vec::new();
+            for height in 0..=fork_height {
+                if stack_top > 0 && stack_fork_height[stack_top - 1] == height {
                     stack_top -= 1;
-                    false
-                } else {
-                    true
+                    skip_height.push(height);
                 }
-            ).collect::<Vec<_>>();
+                if stack_top == 0 {
+                    break;
+                }
+            }
 
             let mut proof_result = Vec::new();
-            for height in heights.iter().copied().rev() {
+            for height in (0..=fork_height).rev() {
                 if height == fork_height && leaf_index + 1 < keys.len() {
                     // If it's not final round, we don't need to merge to root (height=255)
                     continue;
