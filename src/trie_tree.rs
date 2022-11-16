@@ -172,7 +172,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
                     }
                     _ => {
                         if target.is_zero() || last_height == 0 {
-                            let insert_value = if last_height == 0 {
+                            let insert_value = if last_height == 0 || node.is_zero() {
                                 node
                             } else {
                                 MergeValue::shortcut(key, node.hash::<H>(), last_height)
