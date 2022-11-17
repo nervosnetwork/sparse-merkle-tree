@@ -731,6 +731,61 @@ fn test_trie_broken_sample() {
 }
 
 #[test]
+fn test_trie_broken_sample_02() {
+    let key1: H256 = [
+        1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0,
+    ]
+    .into();
+    let key2: H256 = [
+        2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0,
+    ]
+    .into();
+    let key3: H256 = [
+        0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0,
+    ]
+    .into();
+
+    let pairs = vec![
+        (key1, [1; 32].into()),
+        (key2, [2; 32].into()),
+        (key3, [0u8; 32].into()),
+    ];
+    let smt = new_smt(pairs);
+    let kv_state: [([u8; 32], [u8; 32]); 1] = [(
+        [
+            3, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ],
+        [0; 32],
+    )];
+
+    for (k, v) in kv_state {
+        assert_eq!(smt.get(&k.into()).unwrap(), v.into());
+    }
+
+    let keys: Vec<H256> = kv_state.iter().map(|kv| kv.0.into()).collect();
+
+    let proof = smt
+        .merkle_proof(keys.clone())
+        .unwrap()
+        .compile(keys)
+        .unwrap();
+
+    let root1 = proof
+        .compute_root::<Blake2bHasher>(
+            kv_state
+                .iter()
+                .map(|(k, v)| (k.clone().into(), v.clone().into()))
+                .collect(),
+        )
+        .unwrap();
+    assert_eq!(smt.root(), &root1);
+}
+
+#[test]
 fn test_replay_to_pass_proof() {
     let key1: H256 = [
         1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
