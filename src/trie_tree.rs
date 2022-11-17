@@ -76,8 +76,9 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
     /// Update a leaf, return new merkle root
     /// set to zero value to delete a key
     pub fn update(&mut self, key: H256, value: V) -> Result<&H256> {
+        let value_h256 = value.to_h256();
         // compute and store new leaf
-        let node = MergeValue::from_h256(value.to_h256());
+        let node = MergeValue::from_h256(value_h256);
         // notice when value is zero the leaf is deleted, so we do not need to store it
         if !node.is_zero() {
             self.store.insert_leaf(key, value)?;
@@ -107,7 +108,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
                     } => {
                         if this_key.eq(&key) {
                             // we update its value
-                            let target = MergeValue::shortcut(key, node.hash::<H>(), h);
+                            let target = MergeValue::shortcut(key, value_h256, h);
 
                             let new_branch = if key.is_right(last_height) {
                                 BranchNode {
@@ -135,23 +136,23 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
                                 if last_height != 0 {
                                     (
                                         MergeValue::shortcut(this_key, value, last_height),
-                                        MergeValue::shortcut(key, node.hash::<H>(), last_height),
+                                        MergeValue::shortcut(key, value_h256, last_height),
                                     )
                                 } else {
                                     (
                                         MergeValue::from_h256(value),
-                                        MergeValue::from_h256(node.hash::<H>()),
+                                        MergeValue::from_h256(value_h256),
                                     )
                                 }
                             } else {
                                 if last_height != 0 {
                                     (
-                                        MergeValue::shortcut(key, node.hash::<H>(), last_height),
+                                        MergeValue::shortcut(key, value_h256, last_height),
                                         MergeValue::shortcut(this_key, value, last_height),
                                     )
                                 } else {
                                     (
-                                        MergeValue::from_h256(node.hash::<H>()),
+                                        MergeValue::from_h256(value_h256),
                                         MergeValue::from_h256(value),
                                     )
                                 }
@@ -175,7 +176,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
                             let insert_value = if last_height == 0 || node.is_zero() {
                                 node
                             } else {
-                                MergeValue::shortcut(key, node.hash::<H>(), last_height)
+                                MergeValue::shortcut(key, value_h256, last_height)
                             };
                             let (left, right) = if key.is_right(last_height) {
                                 (another, insert_value)
@@ -195,7 +196,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
             } else if !node.is_zero() {
                 let target_node = if last_height != 0 {
                     // adds a shortcut here
-                    MergeValue::shortcut(key, node.hash::<H>(), last_height)
+                    MergeValue::shortcut(key, value_h256, last_height)
                 } else {
                     node
                 };
