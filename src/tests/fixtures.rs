@@ -1,9 +1,12 @@
 use std::fs;
 
-use crate::{blake2b::Blake2bHasher, default_store::DefaultStore, SparseMerkleTree, H256};
+use crate::{
+    blake2b::Blake2bHasher, default_store::DefaultStore, CompiledMerkleProof, SparseMerkleTree,
+    H256,
+};
 use anyhow::Result;
+use rand::{prelude::SliceRandom, thread_rng, Rng};
 use serde::{Deserialize, Serialize};
-// use rand::{prelude::SliceRandom, thread_rng, Rng};
 
 type Leave = ([u8; 32], [u8; 32]);
 
@@ -32,82 +35,77 @@ fn new_smt(pairs: Vec<(H256, H256)>) -> SMT {
     smt
 }
 
-/// Generate random leaves
-// fn leaves(min_leaves: usize, max_leaves: usize) -> Vec<(H256, H256)> {
-//     let mut rng = thread_rng();
-//     let size = rng.gen_range(min_leaves, max_leaves);
-//     let mut pairs: Vec<_> = (0..size)
-//         .map(|_| {
-//             let mut k = [0u8; 32];
-//             let mut v = [0u8; 32];
-//             rng.fill(&mut k);
-//             rng.fill(&mut v);
-//             (k.into(), v.into())
-//         })
-//         .collect();
-//     pairs.dedup_by_key(|(k, _v)| *k);
-//     pairs
-// }
+fn leaves(min_leaves: usize, max_leaves: usize) -> Vec<(H256, H256)> {
+    let mut rng = thread_rng();
+    let size = rng.gen_range(min_leaves..=max_leaves);
+    let mut pairs: Vec<_> = (0..size)
+        .map(|_| {
+            let mut k = [0u8; 32];
+            let mut v = [0u8; 32];
+            rng.fill(&mut k);
+            rng.fill(&mut v);
+            (k.into(), v.into())
+        })
+        .collect();
+    pairs.dedup_by_key(|(k, _v)| *k);
+    pairs
+}
 
-/// Generate test case
-// fn gen_test_case(name: String) -> Case {
-//     let leaves = leaves(1, 50);
-//     let smt = new_smt(leaves.clone());
-//     let mut rng = thread_rng();
-//
-//     let mut proofs = Vec::new();
-//     for _i in 0..5 {
-//         let amount = rng.gen_range(0, leaves.len());
-//         let leaves_to_proof: Vec<_> = leaves.choose_multiple(&mut rng, amount).cloned().collect();
-//         let keys = leaves_to_proof.iter().map(|(k, _v)| *k).collect();
-//         let proof = match smt.merkle_proof(keys) {
-//             Ok(proof) => {
-//                 let compiled_proof = proof
-//                     .clone()
-//                     .compile(leaves_to_proof.clone())
-//                     .expect("compile proof");
-//                 Proof {
-//                     leaves: leaves_to_proof
-//                         .into_iter()
-//                         .map(|(k, v)| (k.into(), v.into()))
-//                         .collect(),
-//                     compiled_proof: compiled_proof.into(),
-//                     error: None,
-//                 }
-//             }
-//             Err(err) => Proof {
-//                 leaves: Default::default(),
-//                 compiled_proof: Default::default(),
-//                 error: Some(format!("{}", err)),
-//             },
-//         };
-//         proofs.push(proof);
-//     }
-//
-//     Case {
-//         name,
-//         root: (*smt.root()).into(),
-//         leaves: leaves
-//             .into_iter()
-//             .map(|(k, v)| (k.into(), v.into()))
-//             .collect(),
-//         proofs,
-//     }
-// }
+fn gen_test_case(name: String) -> Case {
+    let leaves = leaves(1, 50);
+    let smt = new_smt(leaves.clone());
+    let mut rng = thread_rng();
 
-// Uncomment this to generate fixtures
-// #[test]
-// fn test_gen_fixtures() {
-//     let mut rng = thread_rng();
-//     for i in 0..100 {
-//         let name = format!("case-{}", i);
-//         let case = gen_test_case(name.clone());
-//         let content = serde_json::to_vec_pretty(&case).expect("to json");
-//         let path = format!("{}/basic/{}.json", FIXTURES_DIR, name);
-//         fs::write(&path, content).expect("write");
-//         println!("write {}", &path);
-//     }
-// }
+    let mut proofs = Vec::new();
+    for _i in 0..5 {
+        let amount = rng.gen_range(0..=leaves.len());
+        let leaves_to_proof: Vec<_> = leaves.choose_multiple(&mut rng, amount).cloned().collect();
+        let keys: Vec<_> = leaves_to_proof.iter().map(|(k, _v)| *k).collect();
+        let proof = match smt.merkle_proof(keys.clone()) {
+            Ok(proof) => {
+                let compiled_proof = proof.clone().compile(keys).expect("compile proof");
+                Proof {
+                    leaves: leaves_to_proof
+                        .into_iter()
+                        .map(|(k, v)| (k.into(), v.into()))
+                        .collect(),
+                    compiled_proof: compiled_proof.into(),
+                    error: None,
+                }
+            }
+            Err(err) => Proof {
+                leaves: Default::default(),
+                compiled_proof: Default::default(),
+                error: Some(format!("{}", err)),
+            },
+        };
+        proofs.push(proof);
+    }
+
+    Case {
+        name,
+        root: (*smt.root()).into(),
+        leaves: leaves
+            .into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect(),
+        proofs,
+    }
+}
+
+// use `cargo test test_gen_fixtures -- --ignored` to regenerate fixtures
+#[test]
+#[ignore]
+fn test_gen_fixtures() {
+    for i in 0..100 {
+        let name = format!("case-{}", i);
+        let case = gen_test_case(name.clone());
+        let content = serde_json::to_vec_pretty(&case).expect("to json");
+        let path = format!("{}/basic/{}.json", FIXTURES_DIR, name);
+        fs::write(&path, content).expect("write");
+        println!("write {}", &path);
+    }
+}
 
 fn run_test_case(case: Case) -> Result<()> {
     let Case {
@@ -133,12 +131,7 @@ fn run_test_case(case: Case) -> Result<()> {
         let keys = leaves.iter().map(|(k, _v)| (*k).into()).collect();
         let actual_compiled_proof: Vec<u8> = match smt.merkle_proof(keys) {
             Ok(proof) => proof
-                .compile(
-                    leaves
-                        .iter()
-                        .map(|(k, v)| ((*k).into(), (*v).into()))
-                        .collect(),
-                )?
+                .compile(leaves.iter().map(|(k, _v)| (*k).into()).collect())?
                 .into(),
             Err(err) => {
                 let expected_error = error.expect("expected error");
@@ -148,6 +141,17 @@ fn run_test_case(case: Case) -> Result<()> {
         };
 
         assert_eq!(compiled_proof, actual_compiled_proof, "proof");
+
+        let proof = CompiledMerkleProof(compiled_proof);
+        let proof_root = proof
+            .compute_root::<Blake2bHasher>(
+                leaves
+                    .into_iter()
+                    .map(|(k, v)| (k.into(), v.into()))
+                    .collect(),
+            )
+            .expect("compute_root");
+        assert_eq!(smt.root(), &proof_root, "proof root");
     }
 
     Ok(())
