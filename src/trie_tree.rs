@@ -384,10 +384,12 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
                                 if leaves_bitmap[leaf_index].get_bit(fork_height)
                                     && heights.contains(&fork_height)
                                 {
-                                    proof_result.push(
+                                    proof_result.push(if fork_height != 0 {
                                         MergeValue::shortcut(key, value, fork_height)
-                                            .into_merge_with_zero::<H>(),
-                                    );
+                                            .into_merge_with_zero::<H>()
+                                    } else {
+                                        MergeValue::from_h256(value)
+                                    });
                                 }
                                 if fork_height == 1 && leaves_bitmap[leaf_index].get_bit(0) {
                                     proof_result.push(MergeValue::from_h256(value));
@@ -415,10 +417,12 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
                                         if !key.eq(&leaf_key) {
                                             let fork_at = key.fork_height(&leaf_key);
                                             if fork_at == height {
-                                                proof_result.push(
-                                                    MergeValue::shortcut(key, value, height)
-                                                        .into_merge_with_zero::<H>(),
-                                                );
+                                                proof_result.push(if fork_at != 0 {
+                                                    MergeValue::shortcut(key, value, fork_at)
+                                                        .into_merge_with_zero::<H>()
+                                                } else {
+                                                    MergeValue::from_h256(value)
+                                                });
                                             }
                                         }
                                         break;
