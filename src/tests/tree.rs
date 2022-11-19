@@ -573,6 +573,15 @@ proptest! {
     }
 
     #[test]
+    fn test_zero_value_should_delete_branch((pairs, _n) in leaves(5, 30)){
+        let mut smt = new_smt(pairs.clone());
+        for (k, _v) in pairs {
+            smt.update(k, H256::zero()).unwrap();
+        }
+        assert_eq!(0, smt.store().branches_map().len());
+    }
+
+    #[test]
     fn test_smt_not_crash(
         (leaves, _n) in leaves(0, 30),
         leaves_bitmap in leaves_bitmap(30),
