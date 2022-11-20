@@ -48,6 +48,8 @@ impl MergeValue {
 
     #[cfg(feature = "trie")]
     pub fn shortcut(key: H256, value: H256, height: u8) -> Self {
+        debug_assert!(height > 0);
+        debug_assert!(!value.is_zero());
         MergeValue::ShortCut { key, value, height }
     }
 
@@ -72,48 +74,33 @@ impl MergeValue {
                 hasher.finish()
             }
             #[cfg(feature = "trie")]
-            MergeValue::ShortCut {
-                key: _,
-                value,
-                height,
-            } => {
-                // try keep hash same with MergeWithZero
-                if value.is_zero() {
-                    return H256::zero();
-                }
-                if *height == 0 {
-                    *value
-                } else {
-                    self.into_merge_with_zero::<H>().hash::<H>()
-                }
+            MergeValue::ShortCut { key, value, height } => {
+                into_merge_value::<H>(*key, *value, *height).hash::<H>()
             }
         }
     }
+}
 
-    /// Helper function for Shortcut node
-    /// Transform it into a MergeWithZero node
-    /// Notice: When tried to call with a MergeValue::Value, this function will panic
-    #[cfg(feature = "trie")]
-    pub fn into_merge_with_zero<H: Hasher + Default>(&self) -> MergeValue {
-        match self {
-            MergeValue::ShortCut { key, value, height } => {
-                let base_key = key.parent_path(0);
-                let base_node = hash_base_node::<H>(0, &base_key, value);
-                let mut zero_bits = *key;
-                for i in *height..=core::u8::MAX {
-                    if key.get_bit(i) {
-                        zero_bits.clear_bit(i);
-                    }
-                }
-                MergeValue::MergeWithZero {
-                    base_node,
-                    zero_bits,
-                    zero_count: *height,
-                }
+/// Helper function for Shortcut node
+/// Transform it into a MergeValue or MergeWithZero node
+#[cfg(feature = "trie")]
+pub fn into_merge_value<H: Hasher + Default>(key: H256, value: H256, height: u8) -> MergeValue {
+    // try keep hash same with MergeWithZero
+    if value.is_zero() {
+        MergeValue::from_h256(H256::zero())
+    } else {
+        let base_key = key.parent_path(0);
+        let base_node = hash_base_node::<H>(0, &base_key, &value);
+        let mut zero_bits = key;
+        for i in height..=core::u8::MAX {
+            if key.get_bit(i) {
+                zero_bits.clear_bit(i);
             }
-            _ => {
-                panic!("Attempt to convert a MergeValue::Value into MergeValue::ShortCut, which is not supposed to be available.");
-            }
+        }
+        MergeValue::MergeWithZero {
+            base_node,
+            zero_bits,
+            zero_count: height,
         }
     }
 }
