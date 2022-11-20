@@ -77,13 +77,12 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
     /// set to zero value to delete a key
     pub fn update(&mut self, key: H256, value: V) -> Result<&H256> {
         let value_h256 = value.to_h256();
-        // compute and store new leaf
-        let node = MergeValue::from_h256(value_h256);
+        let is_delete = value_h256.is_zero();
         // notice when value is zero the leaf is deleted, so we do not need to store it
-        if !node.is_zero() {
-            self.store.insert_leaf(key, value)?;
-        } else {
+        if is_delete {
             self.store.remove_leaf(&key)?;
+        } else {
+            self.store.insert_leaf(key, value)?;
         }
 
         let mut last_height = core::u8::MAX;
@@ -108,14 +107,10 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
                     } => {
                         if this_key.eq(&key) {
                             // we update its value
-                            if value_h256.is_zero() && another.is_zero() {
+                            if is_delete && another.is_zero() {
                                 self.store.remove_branch(&branch_key)?;
                             } else {
-                                let target = if value_h256.is_zero() {
-                                    MergeValue::from_h256(value_h256)
-                                } else {
-                                    MergeValue::shortcut(key, value_h256, h)
-                                };
+                                let target = MergeValue::shortcut_or_value(key, value_h256, h);
                                 let new_branch = if key.is_right(last_height) {
                                     BranchNode {
                                         left: another,
@@ -132,7 +127,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
                                 self.store.insert_branch(branch_key, new_branch)?;
                             }
                             break;
-                        } else if !value_h256.is_zero() {
+                        } else if !is_delete {
                             // we need to move this shortcut down
 
                             // OPTIMIZATION: the shortcut must dropping to the level where [shortcut's new_height + 1] = [insert/delete key's shortcut height + 1]
@@ -140,29 +135,15 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
                             last_height = this_key.fork_height(&key);
 
                             let (next_left, next_right) = if key.is_right(last_height) {
-                                if last_height != 0 {
-                                    (
-                                        MergeValue::shortcut(this_key, value, last_height),
-                                        MergeValue::shortcut(key, value_h256, last_height),
-                                    )
-                                } else {
-                                    (
-                                        MergeValue::from_h256(value),
-                                        MergeValue::from_h256(value_h256),
-                                    )
-                                }
+                                (
+                                    MergeValue::shortcut_or_value(this_key, value, last_height),
+                                    MergeValue::shortcut_or_value(key, value_h256, last_height),
+                                )
                             } else {
-                                if last_height != 0 {
-                                    (
-                                        MergeValue::shortcut(key, value_h256, last_height),
-                                        MergeValue::shortcut(this_key, value, last_height),
-                                    )
-                                } else {
-                                    (
-                                        MergeValue::from_h256(value_h256),
-                                        MergeValue::from_h256(value),
-                                    )
-                                }
+                                (
+                                    MergeValue::shortcut_or_value(key, value_h256, last_height),
+                                    MergeValue::shortcut_or_value(this_key, value, last_height),
+                                )
                             };
 
                             let next_branch_key =
@@ -183,11 +164,8 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
                     }
                     _ => {
                         if target.is_zero() || last_height == 0 {
-                            let insert_value = if last_height == 0 || node.is_zero() {
-                                node
-                            } else {
-                                MergeValue::shortcut(key, value_h256, last_height)
-                            };
+                            let insert_value =
+                                MergeValue::shortcut_or_value(key, value_h256, last_height);
                             let (left, right) = if key.is_right(last_height) {
                                 (another, insert_value)
                             } else {
@@ -203,13 +181,8 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
                         }
                     }
                 }
-            } else if !node.is_zero() {
-                let target_node = if last_height != 0 {
-                    // adds a shortcut here
-                    MergeValue::shortcut(key, value_h256, last_height)
-                } else {
-                    node
-                };
+            } else if !is_delete {
+                let target_node = MergeValue::shortcut_or_value(key, value_h256, last_height);
                 let (left, right) = if key.is_right(last_height) {
                     (MergeValue::zero(), target_node)
                 } else {

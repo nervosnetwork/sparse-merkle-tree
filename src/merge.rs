@@ -32,25 +32,19 @@ impl MergeValue {
     pub fn is_zero(&self) -> bool {
         match self {
             MergeValue::Value(v) => v.is_zero(),
-            MergeValue::MergeWithZero {
-                base_node: _,
-                zero_bits: _,
-                zero_count: _,
-            } => false,
+            MergeValue::MergeWithZero { .. } => false,
             #[cfg(feature = "trie")]
-            MergeValue::ShortCut {
-                key: _,
-                value,
-                height: _,
-            } => value.is_zero(),
+            MergeValue::ShortCut { .. } => false,
         }
     }
 
     #[cfg(feature = "trie")]
-    pub fn shortcut(key: H256, value: H256, height: u8) -> Self {
-        debug_assert!(height > 0);
-        debug_assert!(!value.is_zero());
-        MergeValue::ShortCut { key, value, height }
+    pub fn shortcut_or_value(key: H256, value: H256, height: u8) -> Self {
+        if height == 0 || value.is_zero() {
+            MergeValue::Value(value)
+        } else {
+            MergeValue::ShortCut { key, value, height }
+        }
     }
 
     #[cfg(feature = "trie")]
@@ -190,7 +184,11 @@ pub fn merge_with_zero<H: Hasher + Default>(
                     zero_count: 0,
                 }
             } else {
-                MergeValue::shortcut(*key, *value, height + 1)
+                MergeValue::ShortCut {
+                    key: *key,
+                    value: *value,
+                    height: height + 1,
+                }
             }
         }
     }
