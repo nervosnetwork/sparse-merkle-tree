@@ -35,12 +35,12 @@ In a naive sparse merkle tree construction, we usually pre-calculate the hash se
 With optimization 1, we do not need the pre-calculated hash-set. For a default SMT, all the intermediate nodes are zero values. Thus, we only need to calculate the hash for non-zero nodes and return zero for the default nodes.
 
 
-There’s only one issue that remains. The optimized hash function produces the same value from different key-value pairs, for example:  
-`merge(N, 0) == merge(0, N)`. 
+There’s only one issue that remains. The optimized hash function produces the same value from different key-value pairs, for example:
+`merge(N, 0) == merge(0, N)`.
 This behavior opens a weak point for the SMT. An attacker may construct a collision of merkle root from a faked key-value map.
 
-To fix this, we use the result of `hash(key | value)`  as a leaf’s hash, for examples: 
-`merge(N, leaf_hash(N, 0)) == merge(0, leaf_hash(0, N))` 
+To fix this, we use the result of `hash(key | value)`  as a leaf’s hash, for examples:
+`merge(N, leaf_hash(N, 0)) == merge(0, leaf_hash(0, N))`
 the result is false because the `leaf_hash(N, 0)` is never equals to `leaf_hash(0, N)` if `N != 0`, the attacker can’t construct a collision attacking.
 
 Additionally, we store `leaf_hash -> value`  in a map to keep the reference to the original value.
@@ -63,7 +63,7 @@ pub struct BranchNode {
     pub right: MergeValue,
 }
 ```
-When `left` and `right` are both zero,  it's not needed to store this zero node. 
+When `left` and `right` are both zero,  it's not needed to store this zero node.
 
 We still face problem: too many branch nodes in real world. Assuming we have only one leaf node in SMT, there are still 255 branch nodes.
 They are all ancestors of the only leaf node. The amount of branch nodes can be easily reached to millions when the leaf nodes grows to above 10k.
@@ -88,7 +88,10 @@ pub struct DefaultStore<V> {
 }
 ```
 
-If branch nodes are too many, it's better to implement a database backend. We suggest [RocksDB](http://rocksdb.org/): an embedded
-persistent key-value store for fast storage. 
+If branch nodes are too many, it's better to implement a database backend. We suggest [RocksDB](http://rocksdb.org/): an embedded persistent key-value store for fast storage. Here is an example of RocksDB backend [implementation](https://github.com/quake/smt-rocksdb-store).
 
 This store mechanics is only used in making SMT proof. It doesn't affect on-chain SMT verification which is still very fast and memory-efficient.
+
+### Optimization 3: Shortcut nodes
+
+We can optimize the storage space and performance by using shortcut nodes. A shortcut is a node that has only one leaf node, it can be merged with its parent node. The shortcut node is only used in the storage, it doesn't affect the verification process. We implement it as following algorithm: [Aergo Trie](https://github.com/aergoio/aergo/tree/master/pkg/trie). This algorithm is enabled by `trie` feature, which is disabled by default.
