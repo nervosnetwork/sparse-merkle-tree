@@ -13,11 +13,10 @@ Features:
 
 * Multi-leaves existence / non-existence merkle proof
 * Customizable hash function
+* Storage backend agnostic
 * Rust `no_std` support
 
 This article describes algorithm of this data structure [An optimized compacted sparse merkle tree](SMT.md)
-
-**Notice** this library is not stabled yet. The API and the format of the proof may be changed in the future. Make sure you know what you are doing before using this library.
 
 ## Construction
 
@@ -35,7 +34,7 @@ height:
            /   \          /  \
 1         0     1        0    1
          / \   / \      / \   / \
-0       0   1 0  1 ... 0   1 0   1 
+0       0   1 0  1 ... 0   1 0   1
        0x00..00 0x00..01   ...   0x11..11
 ```
 
