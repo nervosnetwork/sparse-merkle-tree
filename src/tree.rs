@@ -9,7 +9,6 @@ use crate::{
 };
 use core::cmp::Ordering;
 use core::marker::PhantomData;
-
 /// The branch key
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct BranchKey {
@@ -42,6 +41,21 @@ impl Ord for BranchKey {
 pub struct BranchNode {
     pub left: MergeValue,
     pub right: MergeValue,
+}
+
+impl BranchNode {
+    /// Create a new empty branch
+    pub fn new_empty() -> BranchNode {
+        BranchNode {
+            left: MergeValue::zero(),
+            right: MergeValue::zero(),
+        }
+    }
+
+    /// Determine whether a node did not store any value
+    pub fn is_empty(&self) -> bool {
+        self.left.is_zero() && self.right.is_zero()
+    }
 }
 
 /// Sparse merkle tree

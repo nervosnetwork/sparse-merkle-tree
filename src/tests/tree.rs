@@ -1,7 +1,7 @@
 use crate::*;
 use crate::{
     blake2b::Blake2bHasher, default_store::DefaultStore, error::Error, merge::MergeValue,
-    MerkleProof, SparseMerkleTree,
+    MerkleProof,
 };
 use proptest::prelude::*;
 use rand::prelude::{Rng, SliceRandom};
@@ -168,6 +168,15 @@ fn test_delete_a_leaf() {
     .into();
     tree.update(key, value).unwrap();
     assert_ne!(tree.root(), &H256::zero());
+
+    let key = [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 2,
+    ]
+    .into();
+
+    tree.update(key, value).unwrap();
+
     let root = *tree.root();
     let store = tree.store().clone();
 
@@ -255,6 +264,7 @@ fn test_update(key: H256, value: H256) {
     assert_eq!(tree.get(&key), Ok(value));
 }
 
+#[cfg(not(feature = "trie"))]
 fn test_update_tree_store(key: H256, value: H256, value2: H256) {
     const EXPECTED_LEAVES_LEN: usize = 1;
 
@@ -380,6 +390,7 @@ proptest! {
         test_update(key.into(), value.into());
     }
 
+    #[cfg(not(feature = "trie"))]
     #[test]
     fn test_random_update_tree_store(key: [u8;32], value: [u8;32], value2: [u8;32]) {
         test_update_tree_store(key.into(), value.into(), value2.into());
@@ -562,6 +573,15 @@ proptest! {
     }
 
     #[test]
+    fn test_zero_value_should_delete_branch((pairs, _n) in leaves(5, 30)){
+        let mut smt = new_smt(pairs.clone());
+        for (k, _v) in pairs {
+            smt.update(k, H256::zero()).unwrap();
+        }
+        assert_eq!(0, smt.store().branches_map().len());
+    }
+
+    #[test]
     fn test_smt_not_crash(
         (leaves, _n) in leaves(0, 30),
         leaves_bitmap in leaves_bitmap(30),
@@ -690,6 +710,88 @@ fn test_v0_3_broken_sample() {
     smt.update(k2.into(), v2.into()).unwrap();
     smt.update(k3.into(), v3.into()).unwrap();
     assert_eq!(smt.get(&k1.into()).unwrap(), v1.into());
+}
+
+#[test]
+fn test_trie_broken_sample() {
+    let keys = vec![
+        "f652222313e28459528d920b65115c16c04f3efc82aaedc97be59f3f377c0d40",
+        "5eff886ea0ce6ca488a3d6e336d6c0f75f46d19b42c06ce5ee98e42c96d256c7",
+        "6d5257204ebe7d88fd91ae87941cb2dd9d8062b64ae5a2bd2d28ec40b9fbf6df",
+    ]
+    .into_iter()
+    .map(parse_h256);
+
+    let values = vec![
+        "0000000000000000000000000000000000000000000000000000000000000001",
+        "0000000000000000000000000000000000000000000000000000000000000002",
+        "0000000000000000000000000000000000000000000000000000000000000003",
+    ]
+    .into_iter()
+    .map(parse_h256);
+
+    let mut pairs = keys.zip(values).collect::<Vec<_>>();
+    let smt = new_smt(pairs.clone());
+    let base_branches = smt.store().branches_map();
+    pairs.reverse();
+    let smt = new_smt(pairs.clone());
+    let current_branches = smt.store().branches_map();
+    assert_eq!(base_branches, current_branches);
+}
+
+#[test]
+fn test_trie_broken_sample_02() {
+    let key1: H256 = [
+        1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0,
+    ]
+    .into();
+    let key2: H256 = [
+        2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0,
+    ]
+    .into();
+    let key3: H256 = [
+        0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0,
+    ]
+    .into();
+
+    let pairs = vec![
+        (key1, [1; 32].into()),
+        (key2, [2; 32].into()),
+        (key3, [0u8; 32].into()),
+    ];
+    let smt = new_smt(pairs);
+    let kv_state: [([u8; 32], [u8; 32]); 1] = [(
+        [
+            3, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ],
+        [0; 32],
+    )];
+
+    for (k, v) in kv_state {
+        assert_eq!(smt.get(&k.into()).unwrap(), v.into());
+    }
+
+    let keys: Vec<H256> = kv_state.iter().map(|kv| kv.0.into()).collect();
+
+    let proof = smt
+        .merkle_proof(keys.clone())
+        .unwrap()
+        .compile(keys)
+        .unwrap();
+
+    let root1 = proof
+        .compute_root::<Blake2bHasher>(
+            kv_state
+                .iter()
+                .map(|(k, v)| (k.clone().into(), v.clone().into()))
+                .collect(),
+        )
+        .unwrap();
+    assert_eq!(smt.root(), &root1);
 }
 
 #[test]
