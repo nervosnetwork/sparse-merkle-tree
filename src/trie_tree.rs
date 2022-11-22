@@ -367,14 +367,15 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
                                 if leaves_bitmap[leaf_index].get_bit(fork_height)
                                     && heights.contains(&fork_height)
                                 {
-                                    proof_result.push(into_merge_value::<H>(
-                                        key,
-                                        value,
-                                        fork_height,
-                                    ))
-                                }
-                                if fork_height == 1 && leaves_bitmap[leaf_index].get_bit(0) {
-                                    proof_result.push(MergeValue::from_h256(value));
+                                    if fork_height == 0 {
+                                        proof_result.push(MergeValue::from_h256(value))
+                                    } else {
+                                        proof_result.push(into_merge_value::<H>(
+                                            key,
+                                            value,
+                                            fork_height,
+                                        ))
+                                    }
                                 }
                             }
                             break;
