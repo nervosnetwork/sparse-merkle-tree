@@ -373,9 +373,6 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
                                         fork_height,
                                     ))
                                 }
-                                if fork_height == 1 && leaves_bitmap[leaf_index].get_bit(0) {
-                                    proof_result.push(MergeValue::from_h256(value));
-                                }
                             }
                             break;
                         }
