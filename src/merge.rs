@@ -80,8 +80,8 @@ impl MergeValue {
 #[cfg(feature = "trie")]
 pub fn into_merge_value<H: Hasher + Default>(key: H256, value: H256, height: u8) -> MergeValue {
     // try keep hash same with MergeWithZero
-    if value.is_zero() {
-        MergeValue::from_h256(H256::zero())
+    if value.is_zero() || height == 0 {
+        MergeValue::from_h256(value)
     } else {
         let base_key = key.parent_path(0);
         let base_node = hash_base_node::<H>(0, &base_key, &value);
