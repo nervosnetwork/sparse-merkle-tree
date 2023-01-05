@@ -2,14 +2,14 @@
 fn main() {
     println!("cargo:rerun-if-changed=../ckb_smt.h");
     cc::Build::new()
-        .file("../../src/ckb_smt.c")
+        .file("src/ckb_smt.c")
         .static_flag(true)
         .flag("/Ox")
         .flag("/Gw")
         .flag("/Gy")
-        .include("../../src")
-        .include("..")
-        .include("../deps/ckb-c-stdlib")
+        .include("src/")
+        .include("c/")
+        .include("c/deps/ckb-c-stdlib")
         .flag("/Wall")
         .flag("/WX")
         .flag("/wd5045")
