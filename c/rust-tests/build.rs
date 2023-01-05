@@ -21,7 +21,6 @@ fn main() {
         .define("__SHARED_LIBRARY__", None)
         .define("CKB_STDLIB_NO_SYSCALL_IMPL", None)
         .compile("dl-c-impl");
-
 }
 
 #[cfg(not(target_env="msvc"))]
