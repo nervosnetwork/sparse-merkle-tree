@@ -467,33 +467,37 @@ proptest! {
 
     #[test]
     fn test_smt_non_exists_leaves((pairs, _n) in leaves(1, 20), (pairs2, _n2) in leaves(1, 5)){
-        let smt = new_smt(pairs);
-        let non_exists_keys: Vec<_> = pairs2.into_iter().map(|(k, _v)|k).collect();
-        let proof = smt.merkle_proof(non_exists_keys.clone()).expect("gen proof");
-        let data: Vec<(H256, H256)> = non_exists_keys.iter().map(|k|(*k, H256::zero())).collect();
-        let compiled_proof = proof.clone().compile(non_exists_keys).expect("compile proof");
-        assert!(proof.verify::<Blake2bHasher>(smt.root(), data.clone()).expect("verify proof"));
-        assert!(compiled_proof.verify::<Blake2bHasher>(smt.root(), data.clone()).expect("verify compiled proof"));
+        if pairs.iter().all(|(k, _v)| pairs2.iter().all(|(k2, _v2)| k2 != k)) {
+            let smt = new_smt(pairs);
+            let non_exists_keys: Vec<_> = pairs2.into_iter().map(|(k, _v)|k).collect();
+            let proof = smt.merkle_proof(non_exists_keys.clone()).expect("gen proof");
+            let data: Vec<(H256, H256)> = non_exists_keys.iter().map(|k|(*k, H256::zero())).collect();
+            let compiled_proof = proof.clone().compile(non_exists_keys).expect("compile proof");
+            assert!(proof.verify::<Blake2bHasher>(smt.root(), data.clone()).expect("verify proof"));
+            assert!(compiled_proof.verify::<Blake2bHasher>(smt.root(), data.clone()).expect("verify compiled proof"));
 
-        test_sub_proof(&compiled_proof, &smt, &data, 20);
+            test_sub_proof(&compiled_proof, &smt, &data, 20);
+        }
     }
 
     #[test]
-    fn test_smt_non_exists_leaves_mix((pairs, _n) in leaves(1, 20), (pairs2, _n2) in leaves(1, 5)){
-        let smt = new_smt(pairs.clone());
-        let exists_keys: Vec<_> = pairs.into_iter().map(|(k, _v)|k).collect();
-        let non_exists_keys: Vec<_> = pairs2.into_iter().map(|(k, _v)|k).collect();
-        let exists_keys_len = std::cmp::max(exists_keys.len() / 2, 1);
-        let non_exists_keys_len = std::cmp::max(non_exists_keys.len() / 2, 1);
-        let mut keys: Vec<_> = exists_keys.into_iter().take(exists_keys_len).chain(non_exists_keys.into_iter().take(non_exists_keys_len)).collect();
-        keys.dedup();
-        let proof = smt.merkle_proof(keys.clone()).expect("gen proof");
-        let data: Vec<(H256, H256)> = keys.iter().map(|k|(*k, smt.get(k).expect("get"))).collect();
-        let compiled_proof = proof.clone().compile(keys.clone()).expect("compile proof");
-        assert!(proof.verify::<Blake2bHasher>(smt.root(), data.clone()).expect("verify proof"));
-        assert!(compiled_proof.verify::<Blake2bHasher>(smt.root(), data.clone()).expect("verify compiled proof"));
+    fn test_smt_non_existssss_leaves_mix((pairs, _n) in leaves(1, 20), (pairs2, _n2) in leaves(1, 5)){
+        if pairs.iter().all(|(k, _v)| pairs2.iter().all(|(k2, _v2)| k2 != k)) {
+            let smt = new_smt(pairs.clone());
+            let exists_keys: Vec<_> = pairs.into_iter().map(|(k, _v)|k).collect();
+            let non_exists_keys: Vec<_> = pairs2.into_iter().map(|(k, _v)|k).collect();
+            let exists_keys_len = std::cmp::max(exists_keys.len() / 2, 1);
+            let non_exists_keys_len = std::cmp::max(non_exists_keys.len() / 2, 1);
+            let mut keys: Vec<_> = exists_keys.into_iter().take(exists_keys_len).chain(non_exists_keys.into_iter().take(non_exists_keys_len)).collect();
+            keys.dedup();
+            let proof = smt.merkle_proof(keys.clone()).expect("gen proof");
+            let data: Vec<(H256, H256)> = keys.iter().map(|k|(*k, smt.get(k).expect("get"))).collect();
+            let compiled_proof = proof.clone().compile(keys.clone()).expect("compile proof");
+            assert!(proof.verify::<Blake2bHasher>(smt.root(), data.clone()).expect("verify proof"));
+            assert!(compiled_proof.verify::<Blake2bHasher>(smt.root(), data.clone()).expect("verify compiled proof"));
 
-        test_sub_proof(&compiled_proof, &smt, &data, 20);
+            test_sub_proof(&compiled_proof, &smt, &data, 20);
+        }
     }
 
     #[test]
