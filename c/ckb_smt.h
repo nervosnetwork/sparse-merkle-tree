@@ -13,9 +13,15 @@
 #define RESTRICT
 #endif
 
+#ifdef __GNUC__
+#define SMT_DLL_EXPORT
+#else
+#define SMT_DLL_EXPORT __declspec(dllexport)
+#endif
+
 // The faster version of memset & memcpy implementations used here are from
 // the awesome musl libc project: https://www.musl-libc.org/
-void *_smt_fast_memset(void *dest, int c, size_t n)
+SMT_DLL_EXPORT void *_smt_fast_memset(void *dest, int c, size_t n)
 {
 	unsigned char *s = (unsigned char *)dest;
 	size_t k;
@@ -256,13 +262,13 @@ typedef struct {
   uint32_t capacity;
 } smt_state_t;
 
-void smt_state_init(smt_state_t *state, smt_pair_t *buffer, uint32_t capacity) {
+SMT_DLL_EXPORT void smt_state_init(smt_state_t *state, smt_pair_t *buffer, uint32_t capacity) {
   state->pairs = buffer;
   state->len = 0;
   state->capacity = capacity;
 }
 
-int smt_state_insert(smt_state_t *state, const uint8_t *key,
+SMT_DLL_EXPORT int smt_state_insert(smt_state_t *state, const uint8_t *key,
                      const uint8_t *value) {
   if (state->len < state->capacity) {
     /* shortcut, append at end */
@@ -288,7 +294,7 @@ int smt_state_insert(smt_state_t *state, const uint8_t *key,
   return 0;
 }
 
-int smt_state_fetch(smt_state_t *state, const uint8_t *key, uint8_t *value) {
+SMT_DLL_EXPORT int smt_state_fetch(smt_state_t *state, const uint8_t *key, uint8_t *value) {
   int32_t i = state->len - 1;
   for (; i >= 0; i--) {
     if (memcmp(key, state->pairs[i].key, SMT_KEY_BYTES) == 0) {
@@ -312,7 +318,7 @@ int _smt_pair_cmp(const void *a, const void *b) {
   return pa->order - pb->order;
 }
 
-void smt_state_normalize(smt_state_t *state) {
+SMT_DLL_EXPORT void smt_state_normalize(smt_state_t *state) {
   for (uint32_t i = 0; i < state->len; i++) {
     state->pairs[i].order = state->len - i;
   }
@@ -524,7 +530,7 @@ const _smt_merge_value_t SMT_ZERO = {
  * 2 ** (x - 1) updates. In this case with a stack size of 32, we can deal
  * with 2 ** 31 == 2147483648 updates, which is more than enough.
  */
-int smt_calculate_root(uint8_t *buffer, const smt_state_t *pairs,
+SMT_DLL_EXPORT int smt_calculate_root(uint8_t *buffer, const smt_state_t *pairs,
                        const uint8_t *proof, uint32_t proof_length) {
   uint8_t stack_keys[SMT_STACK_SIZE][SMT_KEY_BYTES];
   _smt_merge_value_t stack_values[SMT_STACK_SIZE];
@@ -725,7 +731,7 @@ int smt_calculate_root(uint8_t *buffer, const smt_state_t *pairs,
   return 0;
 }
 
-int smt_verify(const uint8_t *hash, const smt_state_t *state,
+SMT_DLL_EXPORT int smt_verify(const uint8_t *hash, const smt_state_t *state,
                const uint8_t *proof, uint32_t proof_length) {
   uint8_t buffer[32];
   int ret = smt_calculate_root(buffer, state, proof, proof_length);
