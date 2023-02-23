@@ -25,7 +25,7 @@ smtc = []
 trie = []
 
 [dependencies]
-cfg-if = "0.1"
+cfg-if = "1"
 blake2b-rs = "0.2"
 
 [dev-dependencies]
