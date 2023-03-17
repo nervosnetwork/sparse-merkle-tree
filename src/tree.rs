@@ -1,40 +1,20 @@
 use crate::{
-    collections::VecDeque,
     error::{Error, Result},
-    merge::{merge, MergeValue},
+    merge::{
+        // hex_merge_value,
+        merge,
+        merge_with_zeros,
+        MergeValue,
+    },
     merkle_proof::MerkleProof,
     traits::{Hasher, StoreReadOps, StoreWriteOps, Value},
     vec::Vec,
     H256, MAX_STACK_SIZE,
 };
-use core::cmp::Ordering;
 use core::marker::PhantomData;
-/// The branch key
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct BranchKey {
-    pub height: u8,
-    pub node_key: H256,
-}
 
-impl BranchKey {
-    pub fn new(height: u8, node_key: H256) -> BranchKey {
-        BranchKey { height, node_key }
-    }
-}
-
-impl PartialOrd for BranchKey {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl Ord for BranchKey {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match self.height.cmp(&other.height) {
-            Ordering::Equal => self.node_key.cmp(&other.node_key),
-            ordering => ordering,
-        }
-    }
-}
+/// Suggested merkle path capacity
+const MERKLE_PATH_CAPACITY: usize = 16;
 
 /// A branch in the SMT
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -104,18 +84,8 @@ impl<H, V, S> SparseMerkleTree<H, V, S> {
 
 impl<H: Hasher + Default, V, S: StoreReadOps<V>> SparseMerkleTree<H, V, S> {
     /// Build a merkle tree from store, the root will be calculated automatically
-    pub fn new_with_store(store: S) -> Result<SparseMerkleTree<H, V, S>> {
-        let root_branch_key = BranchKey::new(core::u8::MAX, H256::zero());
-        store
-            .get_branch(&root_branch_key)
-            .map(|branch_node| {
-                branch_node
-                    .map(|n| {
-                        merge::<H>(core::u8::MAX, &H256::zero(), &n.left, &n.right).hash::<H>()
-                    })
-                    .unwrap_or_default()
-            })
-            .map(|root| SparseMerkleTree::new(root, store))
+    pub fn new_with_store(store: S, root: H256) -> SparseMerkleTree<H, V, S> {
+        SparseMerkleTree::new(root, store)
     }
 }
 
@@ -125,146 +95,229 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
     /// Update a leaf, return new merkle root
     /// set to zero value to delete a key
     pub fn update(&mut self, key: H256, value: V) -> Result<&H256> {
-        // compute and store new leaf
-        let node = MergeValue::from_h256(value.to_h256());
-        // notice when value is zero the leaf is deleted, so we do not need to store it
-        if !node.is_zero() {
-            self.store.insert_leaf(key, value)?;
-        } else {
-            self.store.remove_leaf(&key)?;
+        let is_delete = value.to_h256().is_zero();
+
+        // search siblings
+        let MerklePath {
+            height,
+            mut merkle_path,
+            ..
+        } = self.merkle_path(&key)?;
+
+        // if height isn't 0, there is no leaf in the tree
+        if height != 0 && is_delete {
+            return Ok(&self.root);
         }
 
-        // recompute the tree from bottom to top
-        let mut current_key = key;
-        let mut current_node = node;
-        for height in 0..=core::u8::MAX {
-            let parent_key = current_key.parent_path(height);
-            let parent_branch_key = BranchKey::new(height, parent_key);
-            let (left, right) =
-                if let Some(parent_branch) = self.store.get_branch(&parent_branch_key)? {
-                    if current_key.is_right(height) {
-                        (parent_branch.left, current_node)
-                    } else {
-                        (current_node, parent_branch.right)
-                    }
-                } else if current_key.is_right(height) {
-                    (MergeValue::zero(), current_node)
-                } else {
-                    (current_node, MergeValue::zero())
-                };
+        let mut node = MergeValue::Value(value.to_h256());
+        // insert leaf
+        if !is_delete {
+            self.store.insert_leaf(node.hash::<H>(), value)?;
+        }
 
-            if !left.is_zero() || !right.is_zero() {
-                // insert or update branch
+        let mut node_height = 0;
+        // the new leaf becomes descendent
+        while let Some((height, sibling)) = merkle_path.pop() {
+            // FIXME allign to fork_height????
+            assert!(node_height <= height);
+            if node_height < height {
+                node = merge_with_zeros::<H>(key, node, height, height - node_height);
+                node_height = height;
+            }
+
+            let (lhs, rhs) = if key.is_right(height) {
+                (sibling, node)
+            } else {
+                (node, sibling)
+            };
+            let node_key = key.parent_path(height);
+            node = merge::<H>(height, &node_key, &lhs, &rhs);
+
+            let is_merge_with_zero = lhs.is_zero() || rhs.is_zero();
+            let next_sibling_is_zero = height != u8::MAX;
+            if !(is_merge_with_zero && next_sibling_is_zero) {
                 self.store.insert_branch(
-                    parent_branch_key,
+                    node.hash::<H>(),
                     BranchNode {
-                        left: left.clone(),
-                        right: right.clone(),
+                        left: lhs,
+                        right: rhs,
                     },
                 )?;
-            } else {
-                // remove empty branch
-                self.store.remove_branch(&parent_branch_key)?;
             }
-            // prepare for next round
-            current_key = parent_key;
-            current_node = merge::<H>(height, &parent_key, &left, &right);
+            if height == u8::MAX {
+                self.root = node.hash::<H>();
+                return Ok(&self.root);
+            }
+            node_height += 1;
         }
 
-        self.root = current_node.hash::<H>();
+        node = merge_with_zeros::<H>(key, node, u8::MAX, u8::MAX - node_height);
+        let height = u8::MAX;
+        let node_key = key.parent_path(height);
+        let (lhs, rhs) = if key.is_right(height) {
+            (MergeValue::zero(), node)
+        } else {
+            (node, MergeValue::zero())
+        };
+        node = merge::<H>(height, &node_key, &lhs, &rhs);
+        self.store.insert_branch(
+            node.hash::<H>(),
+            BranchNode {
+                left: lhs,
+                right: rhs,
+            },
+        )?;
+
+        self.root = node.hash::<H>();
         Ok(&self.root)
     }
 
     /// Update multiple leaves at once
-    pub fn update_all(&mut self, mut leaves: Vec<(H256, V)>) -> Result<&H256> {
-        // Dedup(only keep the last of each key) and sort leaves
-        leaves.reverse();
-        leaves.sort_by_key(|(a, _)| *a);
-        leaves.dedup_by_key(|(a, _)| *a);
-
-        let mut nodes = leaves
-            .into_iter()
-            .map(|(k, v)| {
-                let value = MergeValue::from_h256(v.to_h256());
-                if !value.is_zero() {
-                    self.store.insert_leaf(k, v)
-                } else {
-                    self.store.remove_leaf(&k)
-                }
-                .map(|_| (k, value, 0))
-            })
-            .collect::<Result<VecDeque<(H256, MergeValue, u8)>>>()?;
-
-        while let Some((current_key, current_merge_value, height)) = nodes.pop_front() {
-            let parent_key = current_key.parent_path(height);
-            let parent_branch_key = BranchKey::new(height, parent_key);
-
-            // Test for neighbors
-            let mut right = None;
-            if !current_key.is_right(height) && !nodes.is_empty() {
-                let (neighbor_key, _, neighbor_height) = nodes.front().expect("nodes is not empty");
-                if neighbor_height.eq(&height) {
-                    let mut right_key = current_key;
-                    right_key.set_bit(height);
-                    if neighbor_key.eq(&right_key) {
-                        let (_, neighbor_value, _) = nodes.pop_front().expect("nodes is not empty");
-                        right = Some(neighbor_value);
-                    }
-                }
-            }
-
-            let (left, right) = if let Some(right_merge_value) = right {
-                (current_merge_value, right_merge_value)
-            } else {
-                // In case neighbor is not available, fetch from store
-                if let Some(parent_branch) = self.store.get_branch(&parent_branch_key)? {
-                    if current_key.is_right(height) {
-                        (parent_branch.left, current_merge_value)
-                    } else {
-                        (current_merge_value, parent_branch.right)
-                    }
-                } else if current_key.is_right(height) {
-                    (MergeValue::zero(), current_merge_value)
-                } else {
-                    (current_merge_value, MergeValue::zero())
-                }
-            };
-
-            if !left.is_zero() || !right.is_zero() {
-                self.store.insert_branch(
-                    parent_branch_key,
-                    BranchNode {
-                        left: left.clone(),
-                        right: right.clone(),
-                    },
-                )?;
-            } else {
-                self.store.remove_branch(&parent_branch_key)?;
-            }
-            if height == core::u8::MAX {
-                self.root = merge::<H>(height, &parent_key, &left, &right).hash::<H>();
-                break;
-            } else {
-                nodes.push_back((
-                    parent_key,
-                    merge::<H>(height, &parent_key, &left, &right),
-                    height + 1,
-                ));
-            }
+    #[deprecated(since = "0.6.1", note = "use update instead")]
+    pub fn update_all(&mut self, leaves: Vec<(H256, V)>) -> Result<&H256> {
+        // unimplemented!();
+        for (key, value) in leaves {
+            self.update(key, value)?;
         }
-
         Ok(&self.root)
     }
 }
 
+struct MerklePath {
+    node: H256,
+    height: u8,
+    bitmap: H256,
+    merkle_path: Vec<(u8, MergeValue)>,
+}
+
 impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S> {
+    /// Get merkle path of a key
+    ///
+    /// # Arguments
+    /// - key
+    ///
+    /// # Returns
+    /// - node: internal node of the key
+    /// - height: height of the node
+    /// - bitmap: bitmap of the key
+    /// - merkle_path: merkle path in reverse order
+    ///
+    fn merkle_path(&self, key: &H256) -> Result<MerklePath> {
+        let mut merkle_path = Vec::with_capacity(MERKLE_PATH_CAPACITY);
+        let mut node = self.root;
+        let mut height = u8::MAX;
+
+        let mut bitmap = H256::zero();
+
+        if self.is_empty() {
+            return Ok(MerklePath {
+                node,
+                height,
+                bitmap,
+                merkle_path,
+            });
+        }
+
+        // search siblings from root
+        loop {
+            let branch = self
+                .store
+                .get_branch(&node)?
+                .ok_or(Error::MissingBranch(height, node))?;
+            // push sibling
+            let next;
+            let sibling;
+            if key.is_right(height) {
+                next = branch.right.clone();
+                sibling = branch.left.clone();
+            } else {
+                next = branch.left.clone();
+                sibling = branch.right.clone();
+            }
+
+            if !sibling.is_zero() {
+                bitmap.set_bit(height);
+                merkle_path.push((height, sibling));
+            }
+            if next.is_zero() {
+                break;
+            }
+
+            // goto next
+            match next {
+                MergeValue::MergeWithZero {
+                    base_node,
+                    mut zero_bits,
+                    mut zero_count,
+                    value,
+                } => {
+                    while zero_count > 0 {
+                        zero_count -= 1;
+                        height -= 1;
+                        // if we are on a zero node, go descendent to zero
+                        let descendent_to_zero = zero_bits.is_right(height) != key.is_right(height);
+                        zero_bits.clear_bit(height);
+                        if descendent_to_zero {
+                            bitmap.set_bit(height);
+                            let sibling = if zero_count == 0 {
+                                MergeValue::Value(value)
+                            } else {
+                                MergeValue::MergeWithZero {
+                                    base_node,
+                                    zero_bits,
+                                    zero_count,
+                                    value,
+                                }
+                            };
+                            merkle_path.push((height, sibling));
+                            // we are at 0 branch, so all siblings from there are zeros
+                            height = 0;
+                            node = H256::zero();
+                            // skip descendent zeros
+                            return Ok(MerklePath {
+                                node,
+                                height,
+                                bitmap,
+                                merkle_path,
+                            });
+                        }
+                    }
+                    if height == 0 {
+                        node = value;
+                        break;
+                    }
+                    assert_eq!(zero_count, 0);
+                    node = value;
+                    height -= 1;
+                }
+                MergeValue::Value(n) => {
+                    node = n;
+                    if height == 0 {
+                        // found leaf
+                        break;
+                    }
+                    height -= 1;
+                }
+            }
+        }
+        Ok(MerklePath {
+            node,
+            height,
+            bitmap,
+            merkle_path,
+        })
+    }
+
     /// Get value of a leaf
     /// return zero value if leaf not exists
     pub fn get(&self, key: &H256) -> Result<V> {
-        if self.is_empty() {
-            return Ok(V::zero());
+        let MerklePath { node, height, .. } = self.merkle_path(key)?;
+
+        if height == 0 {
+            Ok(self.store.get_leaf(&node)?.unwrap_or(V::zero()))
+        } else {
+            Ok(V::zero())
         }
-        Ok(self.store.get_leaf(key)?.unwrap_or_else(V::zero))
     }
 
     /// Generate merkle proof
@@ -273,32 +326,23 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
             return Err(Error::EmptyKeys);
         }
 
-        // sort keys
+        // Sort keys
         keys.sort_unstable();
 
-        // Collect leaf bitmaps
+        // Collect leaf bitmaps and merkle path
         let mut leaves_bitmap: Vec<H256> = Default::default();
-        for current_key in &keys {
-            let mut bitmap = H256::zero();
-            for height in 0..=core::u8::MAX {
-                let parent_key = current_key.parent_path(height);
-                let parent_branch_key = BranchKey::new(height, parent_key);
-                if let Some(parent_branch) = self.store.get_branch(&parent_branch_key)? {
-                    let sibling = if current_key.is_right(height) {
-                        parent_branch.left
-                    } else {
-                        parent_branch.right
-                    };
-                    if !sibling.is_zero() {
-                        bitmap.set_bit(height);
-                    }
-                } else {
-                    // The key is not in the tree (support non-inclusion proof)
-                }
-            }
+        let mut leaves_merkle_path: Vec<_> = Default::default();
+        for key in &keys {
+            let MerklePath {
+                bitmap,
+                merkle_path,
+                ..
+            } = self.merkle_path(key)?;
             leaves_bitmap.push(bitmap);
+            leaves_merkle_path.push(merkle_path);
         }
 
+        // Iterate all leaves to compile proof
         let mut proof: Vec<MergeValue> = Default::default();
         let mut stack_fork_height = [0u8; MAX_STACK_SIZE]; // store fork height
         let mut stack_top = 0;
@@ -315,28 +359,18 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
                     // If it's not final round, we don't need to merge to root (height=255)
                     break;
                 }
-                let parent_key = leaf_key.parent_path(height);
-                let is_right = leaf_key.is_right(height);
 
                 // has non-zero sibling
                 if stack_top > 0 && stack_fork_height[stack_top - 1] == height {
                     stack_top -= 1;
-                } else if leaves_bitmap[leaf_index].get_bit(height) {
-                    let parent_branch_key = BranchKey::new(height, parent_key);
-                    if let Some(parent_branch) = self.store.get_branch(&parent_branch_key)? {
-                        let sibling = if is_right {
-                            parent_branch.left
-                        } else {
-                            parent_branch.right
-                        };
-                        if !sibling.is_zero() {
-                            proof.push(sibling);
-                        } else {
-                            unreachable!();
-                        }
-                    } else {
-                        // The key is not in the tree (support non-inclusion proof)
+                    // pop unused merkle path
+                    if leaves_bitmap[leaf_index].get_bit(height) {
+                        leaves_merkle_path[leaf_index].pop().unwrap();
                     }
+                } else if leaves_bitmap[leaf_index].get_bit(height) {
+                    let sibling = leaves_merkle_path[leaf_index].pop().unwrap().1;
+                    assert!(!sibling.is_zero());
+                    proof.push(sibling);
                 }
             }
             debug_assert!(stack_top < MAX_STACK_SIZE);

@@ -2,53 +2,64 @@ use crate::{
     collections,
     error::Error,
     traits::{StoreReadOps, StoreWriteOps},
-    tree::{BranchKey, BranchNode},
+    tree::BranchNode,
     H256,
 };
 
-#[derive(Debug, Clone, Default)]
+const DEFAULT_CAPACITY: usize = 256;
+
+#[derive(Debug, Clone)]
 pub struct DefaultStore<V> {
-    branches_map: Map<BranchKey, BranchNode>,
-    leaves_map: Map<H256, V>,
+    nodes: Map<H256, BranchNode>,
+    leaves: Map<H256, V>,
+}
+
+impl<V> Default for DefaultStore<V> {
+    fn default() -> Self {
+        Self {
+            nodes: Map::with_capacity(DEFAULT_CAPACITY),
+            leaves: Map::with_capacity(DEFAULT_CAPACITY),
+        }
+    }
 }
 
 impl<V> DefaultStore<V> {
-    pub fn branches_map(&self) -> &Map<BranchKey, BranchNode> {
-        &self.branches_map
+    pub fn branches_map(&self) -> &Map<H256, BranchNode> {
+        &self.nodes
     }
     pub fn leaves_map(&self) -> &Map<H256, V> {
-        &self.leaves_map
+        &self.leaves
     }
     pub fn clear(&mut self) {
-        self.branches_map.clear();
-        self.leaves_map.clear();
+        self.nodes.clear();
+        self.leaves.clear();
     }
 }
 
 impl<V: Clone> StoreReadOps<V> for DefaultStore<V> {
-    fn get_branch(&self, branch_key: &BranchKey) -> Result<Option<BranchNode>, Error> {
-        Ok(self.branches_map.get(branch_key).map(Clone::clone))
+    fn get_branch(&self, key: &H256) -> Result<Option<BranchNode>, Error> {
+        Ok(self.nodes.get(key).map(Clone::clone))
     }
-    fn get_leaf(&self, leaf_key: &H256) -> Result<Option<V>, Error> {
-        Ok(self.leaves_map.get(leaf_key).map(Clone::clone))
+    fn get_leaf(&self, key: &H256) -> Result<Option<V>, Error> {
+        Ok(self.leaves.get(key).map(Clone::clone))
     }
 }
 
 impl<V> StoreWriteOps<V> for DefaultStore<V> {
-    fn insert_branch(&mut self, branch_key: BranchKey, branch: BranchNode) -> Result<(), Error> {
-        self.branches_map.insert(branch_key, branch);
+    fn insert_branch(&mut self, key: H256, branch: BranchNode) -> Result<(), Error> {
+        self.nodes.insert(key, branch);
         Ok(())
     }
-    fn insert_leaf(&mut self, leaf_key: H256, leaf: V) -> Result<(), Error> {
-        self.leaves_map.insert(leaf_key, leaf);
+    fn insert_leaf(&mut self, key: H256, leaf: V) -> Result<(), Error> {
+        self.leaves.insert(key, leaf);
         Ok(())
     }
-    fn remove_branch(&mut self, branch_key: &BranchKey) -> Result<(), Error> {
-        self.branches_map.remove(branch_key);
+    fn remove_branch(&mut self, key: &H256) -> Result<(), Error> {
+        self.nodes.remove(key);
         Ok(())
     }
-    fn remove_leaf(&mut self, leaf_key: &H256) -> Result<(), Error> {
-        self.leaves_map.remove(leaf_key);
+    fn remove_leaf(&mut self, key: &H256) -> Result<(), Error> {
+        self.leaves.remove(key);
         Ok(())
     }
 }

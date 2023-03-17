@@ -9,7 +9,7 @@ use sparse_merkle_tree::{
     default_store::DefaultStore,
     error::Error,
     traits::{StoreReadOps, StoreWriteOps},
-    BranchKey, BranchNode, SparseMerkleTree, H256,
+    BranchNode, SparseMerkleTree, H256,
 };
 
 #[derive(Debug, Default)]
@@ -29,7 +29,7 @@ struct Counters {
 }
 
 impl<V: Clone> StoreReadOps<V> for DefaultStoreWithCounters<V> {
-    fn get_branch(&self, branch_key: &BranchKey) -> Result<Option<BranchNode>, Error> {
+    fn get_branch(&self, branch_key: &H256) -> Result<Option<BranchNode>, Error> {
         self.counters
             .get_branch_counter
             .fetch_add(1, Ordering::SeqCst);
@@ -44,7 +44,7 @@ impl<V: Clone> StoreReadOps<V> for DefaultStoreWithCounters<V> {
 }
 
 impl<V> StoreWriteOps<V> for DefaultStoreWithCounters<V> {
-    fn insert_branch(&mut self, branch_key: BranchKey, branch: BranchNode) -> Result<(), Error> {
+    fn insert_branch(&mut self, branch_key: H256, branch: BranchNode) -> Result<(), Error> {
         self.counters
             .insert_branch_counter
             .fetch_add(1, Ordering::SeqCst);
@@ -56,7 +56,7 @@ impl<V> StoreWriteOps<V> for DefaultStoreWithCounters<V> {
             .fetch_add(1, Ordering::SeqCst);
         self.store.insert_leaf(leaf_key, leaf)
     }
-    fn remove_branch(&mut self, branch_key: &BranchKey) -> Result<(), Error> {
+    fn remove_branch(&mut self, branch_key: &H256) -> Result<(), Error> {
         self.counters
             .remove_branch_counter
             .fetch_add(1, Ordering::SeqCst);
@@ -95,6 +95,7 @@ fn random_smt(update_count: usize, rng: &mut impl Rng) {
     );
 }
 
+#[allow(deprecated)]
 fn random_smt_update_all(update_count: usize, rng: &mut impl Rng) {
     let mut smt = SMT::default();
     let mut kvs = Vec::with_capacity(update_count);

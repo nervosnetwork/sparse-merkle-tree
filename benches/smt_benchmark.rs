@@ -30,6 +30,7 @@ fn random_smt(update_count: usize, rng: &mut impl Rng) -> (SMT, Vec<H256>) {
     (smt, keys)
 }
 
+#[allow(deprecated)]
 fn random_smt_update_all(update_count: usize, rng: &mut impl Rng) {
     let mut smt = SMT::default();
     let mut kvs = Vec::with_capacity(update_count);
