@@ -1,22 +1,13 @@
-default: fmt clippy clippy-trie test test-trie bench-test bench-test-trie check test-c-impl test-cxx-build
+default: fmt clippy test bench-test check test-c-impl test-cxx-build
 
 test:
 	cargo test --all --features std,smtc
 
-test-trie:
-	cargo test --all --all-features
-
 bench-test:
 	cargo bench -- --test
 
-bench-test-trie:
-	cargo bench --features trie -- --test
-
 clippy:
 	cargo clippy  --all --features std,smtc --all-targets
-
-clippy-trie:
-	cargo clippy  --all --all-features --all-targets
 
 fmt:
 	cargo fmt --all -- --check

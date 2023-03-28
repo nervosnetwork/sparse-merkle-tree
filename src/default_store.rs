@@ -6,21 +6,10 @@ use crate::{
     H256,
 };
 
-const DEFAULT_CAPACITY: usize = 256;
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DefaultStore<V> {
     nodes: Map<H256, BranchNode>,
     leaves: Map<H256, V>,
-}
-
-impl<V> Default for DefaultStore<V> {
-    fn default() -> Self {
-        Self {
-            nodes: Map::with_capacity(DEFAULT_CAPACITY),
-            leaves: Map::with_capacity(DEFAULT_CAPACITY),
-        }
-    }
 }
 
 impl<V> DefaultStore<V> {
