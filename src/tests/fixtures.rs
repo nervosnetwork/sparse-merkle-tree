@@ -25,6 +25,7 @@ struct Case {
     proofs: Vec<Proof>,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 type SMT = SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>;
 
 fn new_smt(pairs: Vec<(H256, H256)>) -> SMT {
@@ -109,7 +110,7 @@ fn test_gen_fixtures() {
 
 fn run_test_case(case: Case) -> Result<()> {
     let Case {
-        name: _name,
+        name,
         leaves,
         root,
         proofs,
@@ -120,7 +121,7 @@ fn run_test_case(case: Case) -> Result<()> {
             .map(|(k, v)| ((*k).into(), (*v).into()))
             .collect(),
     );
-    assert_eq!(smt.root(), &root.into(), "root");
+    assert_eq!(smt.root(), &root.into(), "unexpected root in {}", name);
 
     for proof in proofs {
         let Proof {

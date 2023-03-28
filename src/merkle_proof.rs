@@ -98,14 +98,13 @@ impl MerkleProof {
                                 base_node,
                                 zero_bits,
                                 zero_count,
+                                value: _,
                             } => {
                                 let mut buffer = crate::vec![*zero_count];
                                 buffer.extend_from_slice(base_node.as_slice());
                                 buffer.extend_from_slice(zero_bits.as_slice());
                                 (Some(0x51), Some(buffer))
                             }
-                            #[cfg(feature = "trie")]
-                            _ => unreachable!(),
                         }
                     } else {
                         zero_count += 1;
@@ -293,6 +292,7 @@ impl CompiledMerkleProof {
                         base_node,
                         zero_bits,
                         zero_count,
+                        value: H256::zero(),
                     };
                     let (height_u16, key, value) = stack.pop().unwrap();
                     if height_u16 > 255 {
@@ -496,6 +496,7 @@ impl CompiledMerkleProof {
                                 base_node,
                                 zero_bits,
                                 zero_count,
+                                value: _,
                             } => {
                                 sub_proof.push(0x51);
                                 sub_proof.push(*zero_count);
@@ -503,8 +504,6 @@ impl CompiledMerkleProof {
                                 sub_proof.extend(zero_bits.as_slice());
                                 is_last_merge_zero = false;
                             }
-                            #[cfg(feature = "trie")]
-                            _ => {}
                         };
                     }
                 }

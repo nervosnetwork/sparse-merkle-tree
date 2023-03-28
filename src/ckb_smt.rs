@@ -61,7 +61,7 @@ impl SMTBuilder {
                 len: 0,
                 capacity: 0,
             }),
-            _buffer: Vec::with_capacity(capacity as usize),
+            _buffer: Vec::with_capacity(capacity),
         };
         unsafe {
             smt_state_init(smt.state.as_mut(), smt._buffer.as_ptr(), capacity as u32);
