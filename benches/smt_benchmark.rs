@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate criterion;
 
-use criterion::Criterion;
+use criterion::{BenchmarkId, Criterion};
 use rand::{thread_rng, Rng};
 use sparse_merkle_tree::{
     blake2b::Blake2bHasher, default_store::DefaultStore, SparseMerkleTree, H256,
@@ -43,40 +43,42 @@ fn random_smt_update_all(update_count: usize, rng: &mut impl Rng) {
 }
 
 fn bench(c: &mut Criterion) {
-    c.bench_function_over_inputs(
-        "SMT update",
-        |b, &&size| {
-            b.iter(|| {
-                let mut rng = thread_rng();
-                random_smt(size, &mut rng)
-            });
-        },
-        &[100, 10_000],
-    );
+    for input in [100usize, 10000] {
+        c.bench_with_input(
+            BenchmarkId::new("SMT update_all", input),
+            &input,
+            |b, &size| {
+                b.iter(|| {
+                    let mut rng = thread_rng();
+                    random_smt(size, &mut rng)
+                });
+            },
+        );
+    }
 
-    c.bench_function_over_inputs(
-        "SMT update_all",
-        |b, &&size| {
-            b.iter(|| {
-                let mut rng = thread_rng();
-                random_smt_update_all(size, &mut rng)
-            });
-        },
-        &[100, 10_000],
-    );
+    for input in [100usize, 10000] {
+        c.bench_with_input(
+            BenchmarkId::new("SMT update_all", input),
+            &input,
+            |b, &size| {
+                b.iter(|| {
+                    let mut rng = thread_rng();
+                    random_smt_update_all(size, &mut rng)
+                });
+            },
+        );
+    }
 
-    c.bench_function_over_inputs(
-        "SMT get",
-        |b, &&size| {
+    for input in [5000usize, 10000] {
+        c.bench_with_input(BenchmarkId::new("SMT get", input), &input, |b, &size| {
             let mut rng = thread_rng();
             let (smt, _keys) = random_smt(size, &mut rng);
             b.iter(|| {
                 let key = random_h256(&mut rng);
                 smt.get(&key).unwrap();
             });
-        },
-        &[5_000, 10_000],
-    );
+        });
+    }
 
     c.bench_function("SMT generate merkle proof", |b| {
         let mut rng = thread_rng();
