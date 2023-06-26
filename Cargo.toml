@@ -17,16 +17,18 @@ include = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["std"]
+default = ["std", "blake2b"]
 std = []
 # SMT implemented in C
 smtc = []
 # A storage optimized SMT implemented in trie (https://ouvrard-pierre-alain.medium.com/sparse-merkle-tree-86e6e2fc26da)
 trie = []
+# enable blake2b hash implementation
+blake2b = ["dep:blake2b-rs"]
 
 [dependencies]
 cfg-if = "1"
-blake2b-rs = "0.2"
+blake2b-rs = { version = "0.2", optional = true }
 
 [dev-dependencies]
 proptest = "0.9"
