@@ -1,9 +1,9 @@
 use crate::{traits::Hasher, H256};
 
 cfg_if::cfg_if! {
-    if #[cfg(feature = "use-blake2b-rs")] {
+    if #[cfg(feature = "with-blake2b-rs")] {
         pub use blake2b_rs::{Blake2b, Blake2bBuilder};
-    } else {
+    } else if #[cfg(feature = "with-blake2b-ref")] {
         pub use blake2b_ref::{Blake2b, Blake2bBuilder};
     }
 }
