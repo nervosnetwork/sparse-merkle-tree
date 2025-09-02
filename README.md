@@ -40,6 +40,13 @@ height:
 
 The above graph demonstrates a sparse merkle tree with `2 ^ 256` leaves, which can mapping every possible `H256` value into leaves. The height of the tree is `256`, from top to bottom, we denote `0` for each left branch and denote `1` for each right branch, so we can get a 256 bits path, which also can represent in `H256`, we use the path as the key of leaves, the most left leaf's key is `0x00..00`, and the next key is `0x00..01`, the most right key is `0x11..11`.
 
+## Blake2b-rs or Blake2b-ref
+
+`Blake2b-rs` uses a C backend and generally offers higher performance, while `Blake2b-ref` is a pure Rust implementation that tends to provide better portability and compatibility.
+
+**Feature flag:** `use-blake2b-rs` (enabled by default).
+When this feature is enabled, the crate uses `Blake2b-rs`. If you disable `use-blake2b-rs`, it falls back to `Blake2b-ref`.
+
 ## License
 
 MIT
