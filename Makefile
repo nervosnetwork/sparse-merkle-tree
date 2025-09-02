@@ -1,4 +1,4 @@
-default: fmt clippy clippy-trie test test-trie bench-test bench-test-trie check test-c-impl test-cxx-build
+default: fmt clippy clippy-trie test test-trie bench-test bench-test-trie check test-c-impl test-cxx-build test-blake2b-ref
 
 test:
 	cargo test --all --features std,smtc
@@ -30,3 +30,6 @@ test-c-impl:
 
 test-cxx-build:
 	g++ -c src/ckb_smt.c -I c -o smt.o && rm -rf smt.o
+
+test-blake2b-ref:
+	cargo test --no-default-features --features="std"
