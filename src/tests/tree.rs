@@ -68,8 +68,10 @@ fn test_default_merkle_proof() {
 
 #[test]
 fn test_merkle_root() {
-    fn new_blake2b() -> blake2b_rs::Blake2b {
-        blake2b_rs::Blake2bBuilder::new(32).personal(b"SMT").build()
+    fn new_blake2b() -> crate::blake2b::Blake2b {
+        crate::blake2b::Blake2bBuilder::new(32)
+            .personal(b"SMT")
+            .build()
     }
 
     let mut tree = SMT::default();

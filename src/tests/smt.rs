@@ -1,8 +1,8 @@
 #[cfg(feature = "smtc")]
 use std::convert::TryInto;
 
+use crate::blake2b::{Blake2b, Blake2bBuilder};
 use crate::*;
-use blake2b_rs::{Blake2b, Blake2bBuilder};
 use default_store::DefaultStore;
 #[cfg(feature = "smtc")]
 use hex::decode;
