@@ -33,3 +33,6 @@ test-cxx-build:
 
 test-blake2b-ref:
 	cargo test --no-default-features --features="std","with-blake2b-ref"
+
+publish-crate:
+	cargo publish
