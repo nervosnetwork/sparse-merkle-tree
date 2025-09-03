@@ -1,0 +1,32 @@
+{
+  "name": "ckb-test-smt-wasm",
+  "version": "0.1.0",
+  "description": "",
+  "author": "",
+  "license": "MIT",
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsx build.ts",
+    "format": "prettier --write .",
+    "check:format": "prettier --check .",
+    "clean": "echo noclean"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@ckb-js-std/bindings": "^0.1.2",
+    "@ckb-js-std/core": "^0.1.2",
+    "esbuild": "0.24.2",
+    "eslint": "9.18.0",
+    "prettier": "3.4.2",
+    "rimraf": "^6.0.1",
+    "typedoc": "0.27.6",
+    "typedoc-material-theme": "^1.1.0",
+    "typescript": "^5.8.3"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.5",
+    "typescript": "~5.8.2"
+  }
+}
