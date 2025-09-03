@@ -4,11 +4,10 @@
 //!
 //! ```
 //! use sparse_merkle_tree::{
-//!     blake2b::Blake2bHasher, default_store::DefaultStore,
+//!     blake2b::{Blake2bHasher, Blake2b, Blake2bBuilder}, default_store::DefaultStore,
 //!     error::Error, MerkleProof,
 //!     SparseMerkleTree, traits::Value, H256
 //! };
-//! use blake2b_rs::{Blake2b, Blake2bBuilder};
 //!
 //! // define SMT
 //! type SMT = SparseMerkleTree<Blake2bHasher, Word, DefaultStore<Word>>;
