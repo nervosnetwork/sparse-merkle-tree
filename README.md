@@ -44,8 +44,12 @@ The above graph demonstrates a sparse merkle tree with `2 ^ 256` leaves, which c
 
 `Blake2b-rs` uses a C backend and generally offers higher performance, while `Blake2b-ref` is a pure Rust implementation that tends to provide better portability and compatibility.
 
-**Feature flag:** `use-blake2b-rs` (enabled by default).
-When this feature is enabled, the crate uses `Blake2b-rs`. If you disable `use-blake2b-rs`, it falls back to `Blake2b-ref`.
+**Features**
+
+* `with-blake2b-rs` (enabled by default): uses the Blake2b-rs backend.
+* `with-blake2b-ref`: uses the Blake2b-ref backend.
+* If both features are enabled, **Blake2b-rs takes precedence** (to prevent build issues when both are accidentally turned on).
+* If enable `no-default-features`, **must explicitly enable exactly one** of the above features.
 
 ## License
 
