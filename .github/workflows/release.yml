@@ -1,0 +1,24 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write     # Required for OIDC token exchange
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          submodules: true
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - run: |
+          make publish-crate
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
