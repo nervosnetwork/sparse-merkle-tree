@@ -19,6 +19,10 @@ run-example: build-web
 	cp -r pkg-web/ examples/
 	pnpm dlx http-server ./examples/ -p 8000
 
+install-tools:
+	which wasm-pack >/dev/null 2>&1 || cargo install wasm-pack
+	which ckb-debugger >/dev/null 2>&1 || cargo install ckb-debugger
+
 clean:
 	cargo clean
 	rm -rf pkg-nodejs pkg-web
