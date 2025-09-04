@@ -1,4 +1,4 @@
-import { CkbSmt, hash_data, verify_proof } from "sparse-merkle-tree-wasm";
+import { CkbSmt, ckb_blake2b_256, verify_proof } from "sparse-merkle-tree-wasm";
 import { ZERO_HASH } from "../src/misc";
 
 beforeAll(async () => {
@@ -8,14 +8,14 @@ beforeAll(async () => {
 test("ckbs smt", () => {
     const smt = new CkbSmt();
 
-    const k1 = hash_data("aaa");
-    const v1 = hash_data("123aa");
+    const k1 = ckb_blake2b_256("aaa");
+    const v1 = ckb_blake2b_256("123aa");
 
-    const k2 = hash_data("bbb");
-    const v2 = hash_data("112bb");
+    const k2 = ckb_blake2b_256("bbb");
+    const v2 = ckb_blake2b_256(new Uint8Array([0xaa, 0xbb, 0xcc]));
 
-    const k3 = hash_data("ccc");
-    const v3 = hash_data("232cc");
+    const k3 = ckb_blake2b_256("ccc");
+    const v3 = ckb_blake2b_256("232cc");
 
     smt.update(k1, v1);
 

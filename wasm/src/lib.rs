@@ -38,12 +38,16 @@ impl CkbBlake2bHasher {
 type Smt = SparseMerkleTree<CkbBlake2bHasher, H256, DefaultStore<H256>>;
 
 #[wasm_bindgen]
-pub fn hash_data(d: wasm_bindgen::JsValue) -> Uint8Array {
+pub fn ckb_blake2b_256(d: wasm_bindgen::JsValue) -> Uint8Array {
     if d.is_string() {
         let d = d.as_string().unwrap().as_bytes().to_vec();
 
         let mut hasher = CkbBlake2bHasher::default();
         hasher.update(&d);
+        Uint8Array::from(hasher.finish().as_slice())
+    } else if d.is_instance_of::<Uint8Array>() {
+        let mut hasher = CkbBlake2bHasher::default();
+        hasher.update(&Uint8Array::from(d).to_vec());
         Uint8Array::from(hasher.finish().as_slice())
     } else {
         throw_str("unsupport type");

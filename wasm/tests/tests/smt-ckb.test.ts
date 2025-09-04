@@ -2,7 +2,7 @@ import { Resource, Verifier } from "ckb-testtool";
 import { hexFrom, Transaction, hashCkb, WitnessArgs } from "@ckb-ccc/core";
 import { readFileSync } from "fs";
 
-import { CkbSmt, hash_data, verify_proof } from "sparse-merkle-tree-wasm";
+import { CkbSmt, ckb_blake2b_256, verify_proof } from "sparse-merkle-tree-wasm";
 
 import { createJSScript, createScript, SCRIPT_ALWAYS_SUCCESS, toU8a32, ZERO_HASH } from "../src/misc";
 
@@ -17,10 +17,10 @@ test('ckb-smt success', () => {
     const typeScript = createJSScript(resource, tx, hexFrom(SCRIPT_SMT), typeId);
 
     let smt = new CkbSmt();
-    smt.update(hash_data("111"), hash_data("456"));
-    smt.update(hash_data("222"), hash_data("456"));
-    smt.update(hash_data("333"), hash_data("456"));
-    smt.update(hash_data("444"), hash_data("456"));
+    smt.update(ckb_blake2b_256("111"), ckb_blake2b_256("456"));
+    smt.update(ckb_blake2b_256("222"), ckb_blake2b_256("456"));
+    smt.update(ckb_blake2b_256("333"), ckb_blake2b_256("456"));
+    smt.update(ckb_blake2b_256("444"), ckb_blake2b_256("456"));
 
     let k1 = toU8a32(hashCkb(hexFrom('0xaabb')));
     let v1 = toU8a32(hashCkb(hexFrom('0x1122')));
