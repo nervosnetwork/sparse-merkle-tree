@@ -42,6 +42,9 @@ jobs:
         run: which ckb-debugger >/dev/null 2>&1 || cargo install ckb-debugger
 
       - name: wasm-test
+        run: cd wasm && make check
+
+      - name: wasm-test
         run: cd wasm && make test
 
       - name: build-web

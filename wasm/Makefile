@@ -1,7 +1,12 @@
 default: build-nodejs
 
+check:
+	cargo fmt
+	cargo clippy
+	cargo check
+
 build-nodejs:
-	wasm-pack build --target nodejs --out-dir pkg-nodejs
+	wasm-pack build --target nodejs --out-dir pkg-nodejs --dev
 
 build-web:
 	wasm-pack build --target web --out-dir pkg-web

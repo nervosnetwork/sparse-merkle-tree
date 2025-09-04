@@ -35,7 +35,7 @@ impl CkbBlake2bHasher {
     }
 }
 
-type SMT = SparseMerkleTree<CkbBlake2bHasher, H256, DefaultStore<H256>>;
+type Smt = SparseMerkleTree<CkbBlake2bHasher, H256, DefaultStore<H256>>;
 
 #[wasm_bindgen]
 pub fn hash_data(d: wasm_bindgen::JsValue) -> Uint8Array {
@@ -51,9 +51,9 @@ pub fn hash_data(d: wasm_bindgen::JsValue) -> Uint8Array {
 }
 
 #[wasm_bindgen]
-#[derive()]
+#[derive(Default)]
 pub struct CkbSmt {
-    smt: SMT,
+    smt: Smt,
 }
 
 fn u8a_to_h256(d: &Uint8Array) -> H256 {
@@ -65,9 +65,7 @@ fn u8a_to_h256(d: &Uint8Array) -> H256 {
 impl CkbSmt {
     #[wasm_bindgen(constructor)]
     pub fn new() -> CkbSmt {
-        let smt = SMT::default();
-
-        CkbSmt { smt }
+        Default::default()
     }
 
     pub fn root(&self) -> Uint8Array {
@@ -78,8 +76,7 @@ impl CkbSmt {
     pub fn update(&mut self, key: &Uint8Array, val: &Uint8Array) {
         if let Err(err) = self.smt.update(u8a_to_h256(key), u8a_to_h256(val)) {
             throw_str(&format!(
-                "smt update failed, Err: {:?}, : key: {:?}, val: {:?}",
-                err, key, val
+                "smt update failed, Err: {err:?}, : key: {key:?}, val: {val:?}"
             ));
         }
     }
@@ -119,6 +116,6 @@ pub fn verify_proof(root: &Uint8Array, proof: &Uint8Array, leaves: Array) -> boo
 
     match compile_proof.verify::<CkbBlake2bHasher>(&u8a_to_h256(root), lv) {
         Ok(r) => r,
-        Err(err) => throw_str(&format!("verify proof failed: {:?}", err)),
+        Err(err) => throw_str(&format!("verify proof failed: {err:?}")),
     }
 }
