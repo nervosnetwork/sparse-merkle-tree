@@ -1,4 +1,5 @@
 import { CkbSmt, hash_data, verify_proof } from "sparse-merkle-tree-wasm";
+import { ZERO_HASH } from "../src/misc";
 
 beforeAll(async () => {
     // await init();
@@ -26,6 +27,6 @@ test("ckbs smt", () => {
 
     let proof = smt.get_proof([k1, k3]);
 
-    console.assert(verify_proof(root2, proof, [[k1, v1], [k3, ""]]));
+    console.assert(verify_proof(root2, proof, [[k1, v1], [k3, ZERO_HASH]]));
     console.assert(verify_proof(root3, proof, [[k1, v1], [k3, v3]]));
 });

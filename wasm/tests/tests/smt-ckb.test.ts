@@ -4,7 +4,7 @@ import { readFileSync } from "fs";
 
 import { CkbSmt, hash_data, verify_proof } from "sparse-merkle-tree-wasm";
 
-import { createJSScript, createScript, SCRIPT_ALWAYS_SUCCESS } from "../src/misc";
+import { createJSScript, createScript, SCRIPT_ALWAYS_SUCCESS, toU8a32, ZERO_HASH } from "../src/misc";
 
 const SCRIPT_SMT = readFileSync('ckb-contract/dist/ckb-test-smt-wasm.bc')
 
@@ -22,13 +22,13 @@ test('ckb-smt success', () => {
     smt.update(hash_data("333"), hash_data("456"));
     smt.update(hash_data("444"), hash_data("456"));
 
-    let k1 = hashCkb(hexFrom('0xaabb'));
-    let v1 = hashCkb(hexFrom('0x1122'));
+    let k1 = toU8a32(hashCkb(hexFrom('0xaabb')));
+    let v1 = toU8a32(hashCkb(hexFrom('0x1122')));
     console.log(`k1: ${k1}`);
     console.log(`v1: ${v1}`);
 
-    let k2 = hashCkb(hexFrom('0xbbbb'));
-    let v2 = hashCkb(hexFrom('0x3344'));
+    let k2 = toU8a32(hashCkb(hexFrom('0xbbbb')));
+    let v2 = toU8a32(hashCkb(hexFrom('0x3344')));
     console.log(`k2: ${k2}`);
     console.log(`v2: ${v2}`);
 
@@ -45,7 +45,7 @@ test('ckb-smt success', () => {
         inputType: hexFrom(proof)
     });
 
-    console.log(verify_proof(root1, proof, [[k1, v1], [k2, ""]]))
+    console.log(verify_proof(root1, proof, [[k1, v1], [k2, ZERO_HASH]]))
     console.log(verify_proof(root2, proof, [[k1, v1], [k2, v2]]))
 
     const inputCell = resource.mockCell(lockScript, typeScript, hexFrom(root1));

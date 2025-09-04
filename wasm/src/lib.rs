@@ -1,8 +1,9 @@
 use blake2b_ref::{Blake2b, Blake2bBuilder};
+use js_sys::{Array, Uint8Array};
 use sparse_merkle_tree::{
     CompiledMerkleProof, H256, SparseMerkleTree, default_store::DefaultStore, traits::Hasher,
 };
-use wasm_bindgen::{JsCast, prelude::*, throw_str};
+use wasm_bindgen::{prelude::*, throw_str};
 
 pub struct CkbBlake2bHasher(Blake2b);
 impl Default for CkbBlake2bHasher {
@@ -37,44 +38,27 @@ impl CkbBlake2bHasher {
 type SMT = SparseMerkleTree<CkbBlake2bHasher, H256, DefaultStore<H256>>;
 
 #[wasm_bindgen]
-#[derive()]
-pub struct CkbSmt {
-    smt: SMT,
-}
-
-fn h256_to_str(d: &H256) -> String {
-    format!("0x{}", hex::encode(d.as_slice()))
-}
-
-fn str_to_h256(d: &str) -> H256 {
-    if d.is_empty() {
-        return H256::zero();
-    }
-    let d = if d.starts_with("0x") {
-        hex::decode(&d[2..])
-    } else {
-        hex::decode(d)
-    }
-    .unwrap_or_else(|e| throw_str(&format!("hex decode failed, err: {:?}, d: {}", e, d)));
-
-    let d: [u8; 32] = d
-        .try_into()
-        .unwrap_or_else(|e| throw_str(&format!("to [u8; 32] failed, d: {:?}", e)));
-
-    d.into()
-}
-
-#[wasm_bindgen]
-pub fn hash_data(d: wasm_bindgen::JsValue) -> String {
+pub fn hash_data(d: wasm_bindgen::JsValue) -> Uint8Array {
     if d.is_string() {
         let d = d.as_string().unwrap().as_bytes().to_vec();
 
         let mut hasher = CkbBlake2bHasher::default();
         hasher.update(&d);
-        h256_to_str(&hasher.finish())
+        Uint8Array::from(hasher.finish().as_slice())
     } else {
         throw_str("unsupport type");
     }
+}
+
+#[wasm_bindgen]
+#[derive()]
+pub struct CkbSmt {
+    smt: SMT,
+}
+
+fn u8a_to_h256(d: &Uint8Array) -> H256 {
+    let d: [u8; 32] = d.to_vec().try_into().unwrap();
+    d.into()
 }
 
 #[wasm_bindgen]
@@ -86,13 +70,13 @@ impl CkbSmt {
         CkbSmt { smt }
     }
 
-    pub fn root(&self) -> String {
+    pub fn root(&self) -> Uint8Array {
         let h = self.smt.root();
-        h256_to_str(h)
+        Uint8Array::from(h.as_slice())
     }
 
-    pub fn update(&mut self, key: &str, val: &str) {
-        if let Err(err) = self.smt.update(str_to_h256(key), str_to_h256(val)) {
+    pub fn update(&mut self, key: &Uint8Array, val: &Uint8Array) {
+        if let Err(err) = self.smt.update(u8a_to_h256(key), u8a_to_h256(val)) {
             throw_str(&format!(
                 "smt update failed, Err: {:?}, : key: {:?}, val: {:?}",
                 err, key, val
@@ -100,8 +84,8 @@ impl CkbSmt {
         }
     }
 
-    pub fn get_proof(&self, keys: Vec<String>) -> String {
-        let keys: Vec<H256> = keys.into_iter().map(|f| str_to_h256(&f)).collect();
+    pub fn get_proof(&self, keys: Vec<Uint8Array>) -> Uint8Array {
+        let keys: Vec<H256> = keys.into_iter().map(|f| u8a_to_h256(&f)).collect();
         let proof = match self.smt.merkle_proof(keys.clone()) {
             Ok(p) => p,
             Err(err) => throw_str(&format!(
@@ -117,47 +101,23 @@ impl CkbSmt {
             )),
         };
 
-        hex::encode(compile_proof.0)
+        Uint8Array::from(compile_proof.0.as_slice())
     }
-}
-
-fn parse_leaves(leaves: wasm_bindgen::JsValue) -> Vec<(H256, H256)> {
-    let leaves = leaves.dyn_ref::<js_sys::Array>();
-    if leaves.is_none() {
-        throw_str(&format!("verify proof failed, parse leaves failed"));
-    }
-
-    let leaves = leaves.unwrap();
-    leaves
-        .iter()
-        .map(|pair| {
-            if let Some(pair) = pair.dyn_ref::<js_sys::Array>() {
-                if pair.length() == 2 {
-                    (
-                        str_to_h256(&pair.get(0).as_string().unwrap()),
-                        str_to_h256(&pair.get(1).as_string().unwrap()),
-                    )
-                } else {
-                    throw_str(&format!("verify proof failed, parse leaves failed"))
-                }
-            } else {
-                throw_str(&format!("verify proof failed, parse leaves failed"))
-            }
-        })
-        .collect()
 }
 
 #[wasm_bindgen]
-pub fn verify_proof(root: &str, proof: &str, leaves: wasm_bindgen::JsValue) -> bool {
-    let proof = match hex::decode(proof) {
-        Ok(p) => p,
-        Err(err) => throw_str(&format!(
-            "decode proof data failed, Err: {:?}, proof: {}",
-            err, proof
-        )),
-    };
-    let compile_proof = CompiledMerkleProof(proof);
-    match compile_proof.verify::<CkbBlake2bHasher>(&str_to_h256(root), parse_leaves(leaves)) {
+pub fn verify_proof(root: &Uint8Array, proof: &Uint8Array, leaves: Array) -> bool {
+    let compile_proof = CompiledMerkleProof(proof.to_vec());
+
+    let mut lv = Vec::<(H256, H256)>::with_capacity(leaves.length() as usize);
+    for x in leaves.iter() {
+        let pair = js_sys::Array::from(&x);
+        let k = Uint8Array::from(pair.get(0));
+        let v = Uint8Array::from(pair.get(1));
+        lv.push((u8a_to_h256(&k), u8a_to_h256(&v)));
+    }
+
+    match compile_proof.verify::<CkbBlake2bHasher>(&u8a_to_h256(root), lv) {
         Ok(r) => r,
         Err(err) => throw_str(&format!("verify proof failed: {:?}", err)),
     }
