@@ -49,32 +49,22 @@ fn setup_compiler_riscv(build: &mut cc::Build) {
         None => "clang-19".into(),
     };
 
-    if cfg!(feature = "build-with-clang") {
-        build.compiler(clang);
+    build.compiler(clang);
+
+    build
+        .no_default_flags(true)
+        .flag("--target=riscv64")
+        .flag("-march=rv64imc_zba_zbb_zbc_zbs");
+
+    if env::var("DEBUG").map(|v| v != "false").unwrap_or(false) {
+        build.flag("-g").flag("-fno-omit-frame-pointer");
     }
 
-    let compiler = build.get_compiler();
-    if compiler.is_like_clang() {
-        build
-            .no_default_flags(true)
-            .flag("--target=riscv64")
-            .flag("-march=rv64imc_zba_zbb_zbc_zbs");
-
-        if env::var("DEBUG").map(|v| v != "false").unwrap_or(false) {
-            build.flag("-g").flag("-fno-omit-frame-pointer");
-        }
-
-        let opt_level = env::var("OPT_LEVEL").expect("fetching OPT_LEVEL");
-        if opt_level == "z" {
-            build.flag("-Os");
-        } else {
-            build.flag(format!("-O{}", opt_level));
-        }
-    } else if compiler.is_like_gnu() {
-        build
-            .flag("-nostartfiles")
-            .flag("-Wno-dangling-pointer")
-            .flag("-Wno-nonnull-compare");
+    let opt_level = env::var("OPT_LEVEL").expect("fetching OPT_LEVEL");
+    if opt_level == "z" {
+        build.flag("-Os");
+    } else {
+        build.flag(format!("-O{}", opt_level));
     }
 }
 

@@ -21,9 +21,7 @@ default = ["std", "with-blake2b-rs"]
 std = []
 
 # SMT implemented in C
-smtc = ["build-with-clang"]
-# used with feature "smtc"
-build-with-clang = []
+smtc = []
 
 # A storage optimized SMT implemented in trie (https://ouvrard-pierre-alain.medium.com/sparse-merkle-tree-86e6e2fc26da)
 trie = []
