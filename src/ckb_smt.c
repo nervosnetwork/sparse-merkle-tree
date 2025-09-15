@@ -5,7 +5,12 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#ifdef BLAKE2B_DECL_ONLY
 #include "blake2b_decl_only.h"
+#else
+#include "blake2b.h"
+#endif
+
 #include "ckb_smt.h"
 
 smt_state_t* smt_state_new(uint32_t capacity) {

@@ -19,8 +19,10 @@ fn main() {
             .flag("-Wno-nonnull");
         if target_arch == "riscv64" {
             build.include("c/deps/ckb-c-stdlib/libc");
+            build.include("c/deps/ckb-c-stdlib");
             setup_compiler_riscv(&mut build);
         } else {
+            build.define("BLAKE2B_DECL_ONLY", None);
             setup_compiler_native(&mut build);
         }
         build.compile("smt-c-impl");
