@@ -5,10 +5,10 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
-#ifdef BLAKE2B_DECL_ONLY
-#include "blake2b_decl_only.h"
-#else
+#ifdef INCLUDE_BLAKE2B_IMPL
 #include "blake2b.h"
+#else
+#include "blake2b_decl_only.h"
 #endif
 
 #include "ckb_smt.h"
