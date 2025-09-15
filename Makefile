@@ -29,7 +29,7 @@ test-c-impl:
 	cd c/rust-tests && cargo test
 
 test-cxx-build:
-	g++ -c src/ckb_smt.c -I c -o smt.o && rm -rf smt.o
+	g++ -DBLAKE2B_DECL_ONLY -c src/ckb_smt.c -I c -o smt.o && rm -rf smt.o
 
 test-blake2b-ref:
 	cargo test --no-default-features --features="std","with-blake2b-ref"
