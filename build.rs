@@ -9,38 +9,21 @@ fn main() {
 
         let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
 
-        if target_arch == "riscv64" {
-            let mut build = cc::Build::new();
+        let mut build = cc::Build::new();
 
-            build
-                .file("src/ckb_smt.c")
-                .include("src/")
-                .include("c/")
-                .include("c/deps/ckb-c-stdlib/libc")
-                .include("c/deps/ckb-c-stdlib")
-                .flag("-Wno-unused-parameter")
-                .flag("-Wno-nonnull");
+        build
+            .file("src/ckb_smt.c")
+            .include("src/")
+            .include("c/")
+            .flag("-Wno-unused-parameter")
+            .flag("-Wno-nonnull");
+        if target_arch == "riscv64" {
+            build.include("c/deps/ckb-c-stdlib/libc");
             setup_compiler_riscv(&mut build);
-            build.compile("smt-c-impl");
         } else {
-            cc::Build::new()
-                .file("src/ckb_smt.c")
-                .static_flag(true)
-                .flag("-O3")
-                .flag("-fvisibility=hidden")
-                .flag("-fdata-sections")
-                .flag("-ffunction-sections")
-                .include("src/")
-                .include("c/")
-                .include("c/deps/ckb-c-stdlib")
-                .flag("-Wall")
-                .flag("-Werror")
-                .flag("-Wno-unused-parameter")
-                .flag("-Wno-nonnull")
-                .define("__SHARED_LIBRARY__", None)
-                .define("CKB_STDLIB_NO_SYSCALL_IMPL", None)
-                .compile("smt-c-impl");
+            setup_compiler_native(&mut build);
         }
+        build.compile("smt-c-impl");
     }
 }
 
@@ -56,7 +39,8 @@ fn setup_compiler_riscv(build: &mut cc::Build) {
         .flag("-fdata-sections")
         .flag("-ffunction-sections")
         .flag("-Wall")
-        .flag("-Werror");
+        .flag("-Werror")
+        .define("__SHARED_LIBRARY__", None);
 
     let clang = match std::env::var_os("CLANG") {
         Some(val) => val,
@@ -90,4 +74,17 @@ fn setup_compiler_riscv(build: &mut cc::Build) {
             .flag("-Wno-dangling-pointer")
             .flag("-Wno-nonnull-compare");
     }
+}
+
+#[cfg(feature = "smtc")]
+fn setup_compiler_native(build: &mut cc::Build) {
+    build
+        .static_flag(true)
+        .flag("-O3")
+        .flag("-fvisibility=hidden")
+        .flag("-fdata-sections")
+        .flag("-ffunction-sections")
+        .flag("-Wall")
+        .flag("-Werror")
+        .define("CKB_STDLIB_NO_SYSCALL_IMPL", None);
 }
