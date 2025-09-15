@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::{
     collections::VecDeque,
     error::{Error, Result},
@@ -59,7 +61,7 @@ impl BranchNode {
 }
 
 /// Sparse merkle tree
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct SparseMerkleTree<H, V, S> {
     store: S,
     root: H256,
@@ -105,14 +107,12 @@ impl<H, V, S> SparseMerkleTree<H, V, S> {
 impl<H: Hasher + Default, V, S: StoreReadOps<V>> SparseMerkleTree<H, V, S> {
     /// Build a merkle tree from store, the root will be calculated automatically
     pub fn new_with_store(store: S) -> Result<SparseMerkleTree<H, V, S>> {
-        let root_branch_key = BranchKey::new(core::u8::MAX, H256::zero());
+        let root_branch_key = BranchKey::new(u8::MAX, H256::zero());
         store
             .get_branch(&root_branch_key)
             .map(|branch_node| {
                 branch_node
-                    .map(|n| {
-                        merge::<H>(core::u8::MAX, &H256::zero(), &n.left, &n.right).hash::<H>()
-                    })
+                    .map(|n| merge::<H>(u8::MAX, &H256::zero(), &n.left, &n.right).hash::<H>())
                     .unwrap_or_default()
             })
             .map(|root| SparseMerkleTree::new(root, store))
@@ -137,7 +137,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
         // recompute the tree from bottom to top
         let mut current_key = key;
         let mut current_node = node;
-        for height in 0..=core::u8::MAX {
+        for height in 0..=u8::MAX {
             let parent_key = current_key.parent_path(height);
             let parent_branch_key = BranchKey::new(height, parent_key);
             let (left, right) =
@@ -241,7 +241,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
             } else {
                 self.store.remove_branch(&parent_branch_key)?;
             }
-            if height == core::u8::MAX {
+            if height == u8::MAX {
                 self.root = merge::<H>(height, &parent_key, &left, &right).hash::<H>();
                 break;
             } else {
@@ -280,7 +280,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
         let mut leaves_bitmap: Vec<H256> = Default::default();
         for current_key in &keys {
             let mut bitmap = H256::zero();
-            for height in 0..=core::u8::MAX {
+            for height in 0..=u8::MAX {
                 let parent_key = current_key.parent_path(height);
                 let parent_branch_key = BranchKey::new(height, parent_key);
                 if let Some(parent_branch) = self.store.get_branch(&parent_branch_key)? {
@@ -308,7 +308,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
             let fork_height = if leaf_index + 1 < keys.len() {
                 leaf_key.fork_height(&keys[leaf_index + 1])
             } else {
-                core::u8::MAX
+                u8::MAX
             };
             for height in 0..=fork_height {
                 if height == fork_height && leaf_index + 1 < keys.len() {

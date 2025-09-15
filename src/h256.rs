@@ -20,7 +20,7 @@ impl H256 {
     pub fn get_bit(&self, i: u8) -> bool {
         let byte_pos = i / BYTE_SIZE;
         let bit_pos = i % BYTE_SIZE;
-        let bit = self.0[byte_pos as usize] >> bit_pos & 1;
+        let bit = (self.0[byte_pos as usize] >> bit_pos) & 1;
         bit != 0
     }
 
@@ -28,7 +28,7 @@ impl H256 {
     pub fn set_bit(&mut self, i: u8) {
         let byte_pos = i / BYTE_SIZE;
         let bit_pos = i % BYTE_SIZE;
-        self.0[byte_pos as usize] |= 1 << bit_pos as u8;
+        self.0[byte_pos as usize] |= 1 << bit_pos;
     }
 
     #[inline]
@@ -50,7 +50,7 @@ impl H256 {
     /// Treat H256 as a path in a tree
     /// fork height is the number of common bits(from heigher to lower: 255..=0) of two H256
     pub fn fork_height(&self, key: &H256) -> u8 {
-        for h in (0..=core::u8::MAX).rev() {
+        for h in (0..=u8::MAX).rev() {
             if self.get_bit(h) != key.get_bit(h) {
                 return h;
             }
@@ -61,7 +61,7 @@ impl H256 {
     /// Treat H256 as a path in a tree
     /// return parent_path of self
     pub fn parent_path(&self, height: u8) -> Self {
-        if height == core::u8::MAX {
+        if height == u8::MAX {
             H256::zero()
         } else {
             self.copy_bits(height + 1)

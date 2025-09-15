@@ -379,7 +379,7 @@ proptest! {
     fn test_h256_copy_bits(start: u8) {
         let one: H256 = [255u8; 32].into();
         let target = one.copy_bits(start);
-        for i in start..=core::u8::MAX {
+        for i in start..=u8::MAX {
             assert_eq!(one.get_bit(i), target.get_bit(i));
         }
         for i in 0..start {
@@ -793,7 +793,7 @@ fn test_trie_broken_sample_02() {
         .compute_root::<Blake2bHasher>(
             kv_state
                 .iter()
-                .map(|(k, v)| (k.clone().into(), v.clone().into()))
+                .map(|(k, v)| ((*k).into(), (*v).into()))
                 .collect(),
         )
         .unwrap();

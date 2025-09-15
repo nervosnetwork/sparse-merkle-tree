@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::{
     error::{Error, Result},
     merge::{into_merge_value, merge, MergeValue},
@@ -56,14 +58,12 @@ impl<H, V, S> SparseMerkleTree<H, V, S> {
 impl<H: Hasher + Default, V, S: StoreReadOps<V>> SparseMerkleTree<H, V, S> {
     /// Build a merkle tree from store, the root will be calculated automatically
     pub fn new_with_store(store: S) -> Result<SparseMerkleTree<H, V, S>> {
-        let root_branch_key = BranchKey::new(core::u8::MAX, H256::zero());
+        let root_branch_key = BranchKey::new(u8::MAX, H256::zero());
         store
             .get_branch(&root_branch_key)
             .map(|branch_node| {
                 branch_node
-                    .map(|n| {
-                        merge::<H>(core::u8::MAX, &H256::zero(), &n.left, &n.right).hash::<H>()
-                    })
+                    .map(|n| merge::<H>(u8::MAX, &H256::zero(), &n.left, &n.right).hash::<H>())
                     .unwrap_or_default()
             })
             .map(|root| SparseMerkleTree::new(root, store))
@@ -85,7 +85,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
             self.store.insert_leaf(key, value)?;
         }
 
-        let mut last_height = core::u8::MAX;
+        let mut last_height = u8::MAX;
         loop {
             // walk from top to bottom
             let node_key = key.parent_path(last_height);
@@ -199,7 +199,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
             }
         }
 
-        for height in last_height..=core::u8::MAX {
+        for height in last_height..=u8::MAX {
             // update tree hash from insert pos to top
             let node_key = key.parent_path(height);
             let branch_key = BranchKey::new(height, node_key);
@@ -209,7 +209,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V> + StoreWriteOps<V>>
             } else {
                 MergeValue::zero()
             };
-            if height == core::u8::MAX {
+            if height == u8::MAX {
                 // updating root
                 self.root = new_merge.hash::<H>();
             } else {
@@ -292,7 +292,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
         let mut leaves_bitmap: Vec<H256> = Default::default();
         for current_key in &keys {
             let mut bitmap = H256::zero();
-            for height in (0..=core::u8::MAX).rev() {
+            for height in (0..=u8::MAX).rev() {
                 let parent_key = current_key.parent_path(height);
                 let parent_branch_key = BranchKey::new(height, parent_key);
                 if let Some(parent_branch) = self.store.get_branch(&parent_branch_key)? {
@@ -327,11 +327,10 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
             let fork_height = if leaf_index + 1 < keys.len() {
                 leaf_key.fork_height(&keys[leaf_index + 1])
             } else {
-                core::u8::MAX
+                u8::MAX
             };
 
             let heights = (0..=fork_height)
-                .into_iter()
                 .filter(|height| {
                     if stack_top > 0 && stack_fork_height[stack_top - 1] == *height {
                         stack_top -= 1;
@@ -378,7 +377,7 @@ impl<H: Hasher + Default, V: Value, S: StoreReadOps<V>> SparseMerkleTree<H, V, S
                         }
                     } else {
                         // Maybe we've skipped shortcut node, find from up to down
-                        for i in (height..=core::u8::MAX).rev() {
+                        for i in (height..=u8::MAX).rev() {
                             let parent_key = leaf_key.parent_path(i);
                             let is_right = leaf_key.is_right(i);
                             let parent_branch_key = BranchKey::new(i, parent_key);

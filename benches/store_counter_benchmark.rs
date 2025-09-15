@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate criterion;
 
 use std::sync::atomic::{AtomicUsize, Ordering};

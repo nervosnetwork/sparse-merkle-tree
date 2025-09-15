@@ -73,7 +73,7 @@ impl MerkleProof {
             let fork_height = if leaf_index + 1 < leaves_keys.len() {
                 leaf_key.fork_height(&leaves_keys[leaf_index + 1])
             } else {
-                core::u8::MAX
+                u8::MAX
             };
             proof.push(0x4C);
             let mut zero_count = 0u16;
