@@ -25,10 +25,10 @@ struct Case {
     proofs: Vec<Proof>,
 }
 
-type SMT = SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>;
+type Smt = SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>;
 
-fn new_smt(pairs: Vec<(H256, H256)>) -> SMT {
-    let mut smt = SMT::default();
+fn new_smt(pairs: Vec<(H256, H256)>) -> Smt {
+    let mut smt = Smt::default();
     for (key, value) in pairs {
         smt.update(key, value).unwrap();
     }
