@@ -1,3 +1,4 @@
+// TODO:
 #![allow(dead_code)]
 
 use crate::{
@@ -61,7 +62,7 @@ impl BranchNode {
 }
 
 /// Sparse merkle tree
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SparseMerkleTree<H, V, S> {
     store: S,
     root: H256,
