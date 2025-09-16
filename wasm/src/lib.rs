@@ -8,7 +8,6 @@ use wasm_bindgen::{prelude::*, throw_str};
 pub struct CkbBlake2bHasher(Blake2b);
 impl Default for CkbBlake2bHasher {
     fn default() -> Self {
-        // NOTE: here we not set the `personal` since ckb_smt.c linked blake2b implementation from blake2b-rs
         let blake2b = Blake2bBuilder::new(32)
             .personal(b"ckb-default-hash")
             .build();
