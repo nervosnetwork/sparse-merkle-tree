@@ -1,6 +1,3 @@
-
-Note: This document is based on the original blog post [An optimized compacted sparse merkle tree](https://justjjy.com/An-optimized-compact-sparse-merkle-tree)
-
 ### Introduction
 
 Sparse merkle tree is an advanced data structure used in the blockchain world. It can compress a large key-value map into short bytes represented merkle root and generates existence or non-existence proof for keys in the tree.
