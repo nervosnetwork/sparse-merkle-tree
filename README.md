@@ -53,4 +53,4 @@ The above graph demonstrates a sparse merkle tree with `2 ^ 256` leaves, which c
 
 ## License
 
-MIT
+[MIT](LICENSE)
