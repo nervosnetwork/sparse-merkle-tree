@@ -171,6 +171,68 @@ fn h256_by_u8(n: u8) -> [u8; 32] {
 }
 
 #[test]
+fn test_c_rejects_same_side_merge() {
+    let key_a = [0u8; 32];
+    let mut key_b = key_a;
+    key_b[0] = 1;
+    let value_a = [1u8; 32];
+    let value_b = [2u8; 32];
+
+    let tree = new_ckb_smt(vec![
+        (key_a.into(), value_a.into()),
+        (key_b.into(), value_b.into()),
+    ]);
+    let compiled = tree
+        .merkle_proof(vec![key_a.into(), key_b.into()])
+        .unwrap()
+        .compile(vec![key_a.into(), key_b.into()])
+        .unwrap();
+    let valid_proof: Vec<u8> = compiled.into();
+
+    let mut state = SmtCImpl::new(2);
+    state.insert(&key_a, &value_a).unwrap();
+    state.insert(&key_b, &value_b).unwrap();
+    state.verify(tree.root().as_slice(), &valid_proof).unwrap();
+
+    // The keys fork at height 0, but this proof first skips that height and
+    // then attempts to merge them as siblings at height 1.
+    let invalid_proof = [0x4c, 0x4f, 1, 0x4c, 0x4f, 1, 0x48, 0x4f, 254];
+    assert_eq!(state.calculate_root(&invalid_proof), Err(84));
+}
+
+#[test]
+fn test_c_accepts_opposite_side_merge_at_height_one() {
+    let key_a = [0u8; 32];
+    let mut key_b = key_a;
+    key_b[0] = 2;
+    let value_a = [1u8; 32];
+    let value_b = [2u8; 32];
+    let tree = new_ckb_smt(vec![
+        (key_a.into(), value_a.into()),
+        (key_b.into(), value_b.into()),
+    ]);
+
+    let mut state = SmtCImpl::new(2);
+    state.insert(&key_a, &value_a).unwrap();
+    state.insert(&key_b, &value_b).unwrap();
+    let proof = [0x4c, 0x4f, 1, 0x4c, 0x4f, 1, 0x48, 0x4f, 254];
+    let expected_root: [u8; 32] = (*tree.root()).into();
+    assert_eq!(state.calculate_root(&proof).unwrap(), expected_root);
+}
+
+#[test]
+fn test_c_rejects_duplicate_leaf_keys() {
+    let key = [0u8; 32];
+    let mut state = SmtCImpl::new(2);
+    state.insert(&key, &[1u8; 32]).unwrap();
+    state.insert(&key, &[2u8; 32]).unwrap();
+
+    // Keep both leaves in the raw state so the verifier sees duplicate keys.
+    let invalid_proof = [0x4c, 0x4c, 0x48, 0x4f, 255];
+    assert_eq!(state.calculate_root(&invalid_proof), Err(84));
+}
+
+#[test]
 fn test_normalize() {
     // pushed key = 7, value = 1
     // pushed key = 1, value = 1
