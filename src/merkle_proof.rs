@@ -60,6 +60,9 @@ impl MerkleProof {
         }
         // sort leaves keys
         leaves_keys.sort_unstable();
+        if leaves_keys.windows(2).any(|keys| keys[0] == keys[1]) {
+            return Err(Error::CorruptedProof);
+        }
 
         let (leaves_bitmap, merkle_path) = self.take();
 
@@ -329,7 +332,9 @@ impl CompiledMerkleProof {
                     let height = height_u16 as u8;
                     let parent_key_a = key_a.parent_path(height);
                     let parent_key_b = key_b.parent_path(height);
-                    if parent_key_a != parent_key_b {
+                    if parent_key_a != parent_key_b
+                        || key_a.get_bit(height) == key_b.get_bit(height)
+                    {
                         return Err(Error::CorruptedProof);
                     }
                     callback(OpCodeContext::H {

@@ -637,6 +637,9 @@ int smt_calculate_root(uint8_t *buffer, const smt_state_t *pairs,
         if (height_a > 255) {
           return ERROR_INVALID_PROOF;
         }
+        if (_smt_get_bit(key_a, height_a) == _smt_get_bit(key_b, height_b)) {
+          return ERROR_INVALID_PROOF;
+        }
         uint8_t parent_key[SMT_KEY_BYTES];
         _smt_fast_memcpy(parent_key, key_a, SMT_KEY_BYTES);
         _smt_parent_path(parent_key, (uint8_t)height_a);
